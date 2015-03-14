@@ -126,9 +126,9 @@ for i=1:P.kk
 
     % qui applica il decadimento (asintotico, quanto viene prodotto):
     CNH4_UR             = CNH4_UR       + B.Ctop.Cstar.UR(i)*B.Ctop.KhUR*exp(-B.Ctop.KhUR*tm);
-    % NH3 contribuisce per lo più nel momento della
+    % NH3 contribuisce per lo piï¿½ nel momento della
     % somministrazione (per cui dopo non fai la sum):
-    CNH3_UR             = CNH3_UR       + B.Ctop.Cstar.UR(i)*B.Ctop.KvUR*exp(-B.Ctop.KvUR*P.tm);
+    CNH3_UR             = CNH3_UR       + B.Ctop.Cstar.UR(i)*B.Ctop.KvUR*exp(-B.Ctop.KvUR*tm);
     CNH4_ORG_rp         = CNH4_ORG_rp   + B.Ctop.Cstar.ORG.rp(i)*B.Ctop.KmORG_rp*exp(-B.Ctop.KmORG_rp*tm);
     CNH4_ORG_sw         = CNH4_ORG_sw   + B.Ctop.Cstar.ORG.sw(i)*B.Ctop.KmORG_sw*exp(-B.Ctop.KmORG_sw*tm);
 
@@ -137,12 +137,12 @@ for i=1:P.kk
 %     C_ORG_RES(i)        = B.Ctop.Cstar.ORG.rp(i) + B.Ctop.Cstar.ORG.sw(i) - CNH4_ORG_CUM(i);
 end
 
-% Non si moltiplica per W.dt perché dalla deirvata calcolata al for
-% precedente si ottiene il CNH4 prodotto per unità di tempo che è quello
+% Non si moltiplica per W.dt perchï¿½ dalla deirvata calcolata al for
+% precedente si ottiene il CNH4 prodotto per unitï¿½ di tempo che ï¿½ quello
 % che deve entrare nella equazione ADE.
 
 % L'apporto della forma solida NH4 ed NO3 dura per l'intero periodo
-% P.kk:P.kk+1. essendo in g/cm2/d, l'input è già nella forma richiesta
+% P.kk:P.kk+1. essendo in g/cm2/d, l'input ï¿½ giï¿½ nella forma richiesta
 % dall'ADE.
 % Questo viene poi moltiplicato per W.dt nella stessa equazione.
 CNH4_SD                 = B.Ctop.Cstar.NH.SD(P.kk);
@@ -204,7 +204,7 @@ for sl=1:2
             P.flux(W.nz+1,P.j)      = P.fluxbot(P.j);
             lambdaup                = (S.CDE.lambda(1)+lambdatop)/2;
             lambdalow               = (S.CDE.lambda(1)+S.CDE.lambda(2))/2;
-            if i==P.isar(jj)+1
+            if i==P.istar(jj)+1
                 fluxup              = ((P.flux(P.istar(jj)+1,P.j)+fluxin)/2);
                 fluxlow             = ((P.flux(P.istar(jj)+1,P.j)+P.flux(P.istar(jj)+2,P.j))/2);
                 C1up                = (P.C1(P.istar(jj)+1,sl,P.j)+C1top)/2;         
@@ -264,7 +264,7 @@ for sl=1:2
                 SsSk                = +C2_ntf_lq +C2_ntf_sd -C2_immb -C2_dntf -C2_sink +CNO_pn(i);
             end
             
-            % è giusto aggiungere P.C1?? Risponde Antonio...
+            % ï¿½ giusto aggiungere P.C1?? Risponde Antonio...
             C2_chem                 = ( SsSk*W.dt + P.C1(i,sl,P.j)*P.teta(i,P.j) ) /P.teta(i,P.j);
             C2_tot                  = C2phys + C2_chem;
 
@@ -274,7 +274,7 @@ for sl=1:2
             else    
 %% Bisection method
 % Bisection method (vedi libro con esercizi numerici in Matlab) for
-% adsorbing solutes with Freundlich f_bis_sol è la funzione di cui si vuole
+% adsorbing solutes with Freundlich f_bis_sol ï¿½ la funzione di cui si vuole
 % trovare lo zero.
 % E' bene fissare un limite inferiore per P.C2(i,P.j)=10^k per eliminare
 % eventuali valori negativi ed evitare problemi di convergenza del metodo.
@@ -283,30 +283,7 @@ for sl=1:2
                     P.C2(i,sl,P.j)  = C2phys;
                 else
                     P.C2(i,sl,P.j)  = mln_bisection( P.teta(i,P.j),P.dap(i),P.S1(i,sl,P.j), ...
-                                        S.CDE.NX.Kf1(sl),S.CDE.NX.Kf2(sl),C2phys,SsSk,W.dt);
-%                     f_bis_sol       = @(yps) P.teta(i,P.j)*yps-P.teta(i,P.j)*C2phys+P.dap(i)*S.CDE.NX.Kf1(sl)*yps^S.CDE.NX.Kf2(sl)-P.dap(i)*P.S1(i,sl,P.j)-SsSk*W.dt;
-%                     a_bs            = -100;
-%                     b_bs            = 100;
-%                     espon           = -30;
-%                     eps_bs          = 10^espon;
-%                     fa              = feval(f_bis_sol,a_bs);
-%                     fb              = feval(f_bis_sol,b_bs);
-%                     if fa*fb>0
-%                         error('Intervallo iniziale non accettabile')
-%                     end
-%                     Nit_sol         = (log(b_bs-a_bs)-log(eps_bs))/log(2);
-%                     for u=3:Nit_sol+2
-%                         ics         = (a_bs+b_bs)/2;
-%                         fics        = feval(f_bis_sol,ics);
-%                         if fa*fics<=0
-%                             b_bs    = ics;
-%                         else
-%                             a_bs    = ics;
-%                             fa      = fics;
-%                         end
-%                     end
-%                     ics_fin         = (a_bs+b_bs)/2;
-%                     P.C2(i,sl,P.j)  = ics_fin;
+                                        S.CDE.NX.Kf1(sl),S.CDE.NX.Kf2(sl),C2phys,SsSk,W.dt );
                 end
             end
         end

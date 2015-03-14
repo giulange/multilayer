@@ -5,13 +5,13 @@ proj.description    = 'MARWA CORRECTED NOVEMBRE 2011';
 
 % ipath:                The path where all the input files required by
 %                       multilayer simulation are in.
-proj.ipath          = '/Users/giuliano/work/MyMatLab/multilayer_NITRATES_AGROCOM/';
+proj.ipath          = '/home/giuliano/git/multilayer';
 
 % opath:                The path in which all the output printed files are
 %                       stored during multilayer simulation. A check is
 %                       performed to ensure that new simulations do not
 %                       overwrite old ones, if not needed.
-proj.opath          = '/Users/giuliano/work/MyMatLab/multilayer_NITRATES_AGROCOM/output/';
+proj.opath          = '/home/giuliano/git/multilayer/output/';
 
 %%   WATER INPUT
 % ----------------------------------
@@ -38,7 +38,7 @@ W.dtin              = 0.00001;
 
 W.zint              = [25, 60, 300];
 
-% W.crc.? --> curva ritenzione/conducibilità: es. W.crc.dap, W.crc.tetas, ecc. 
+% W.crc.? --> curva ritenzione/conducibilitï¿½: es. W.crc.dap, W.crc.tetas, ecc. 
 W.d_ap              = [1.1, 1.1, 1.1];
 W.tetas             = [0.340, 0.310, 0.300];
 W.tetar             = [0.000, 0.000, 0.000];
@@ -130,7 +130,7 @@ B.bot.hqstar        = [ 0.01, 0.05, 0.00, 0.01, 0.02, 0.00, 0.01, 0.02, 0.01, 0.
 % Si assume che FR sia liquido e rappresenti l'apporto in superficie
 % (C_input nell'equazione ADE) mentre le altre forme si considerano
 % distribuite su uno spessore dL ed entrano nell'ADE come sink-source.
-% Tstar è la temperatura in °C per il calcolo di Kmineralizzazione, sia
+% Tstar ï¿½ la temperatura in ï¿½C per il calcolo di Kmineralizzazione, sia
 % rapida che lenta.
 
 B.Ctop.description  = 'MARWA CORRECTED Ctopbound';%--> 'a discretization...'
@@ -144,7 +144,7 @@ B.Ctop.dL           = 30;   % [cm]
 % **DATA**
 %   [days]
 B.Ctop.tqstar       = 0:1:B.Ctop.nCtop-1;
-%   [°C]
+%   [ï¿½C]
 B.Ctop.Tstar        = [ 22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	22.6	23.2	22.2	23.5	23.4	23.4	23.5	22.6	22.8	22	23.2	22.5	22.5	23.2	24.1	23.6	22.1	22.1	21.5	21.5	21.5	20.3	21.4	21.4	21.9	22	22	22.5	23.2	23.2	23.1	22.7	21.4	21.4	21.1	20.9	21.4	21	21.2	21.1	21.1	21	20.4	20.4	20.7	20.5	20.5	20.5	20.2	20.2	20.6	20	19.7	19	19	18.9	19.5	19.5	21.1	18.6	18.6	18.6	18.1	18.1	18.3	18.3	17.3	17.3	17.2	17.2	16.5	16.5	16	14.6	14.6	14.1	14.1	15.5	15.5	15.6	14.9	14.9	14.4	14.4	12.9	12.9	13.3	13.8	13.8	13.5	13.5	13.4	13.4	13.4	12.3	12.3	12.5	12.5	12.8	12.8	12.8	12.8	12.5	12.5	12.5	14	14	13.7	13.6 ];
 %   [g/cm3H2O] -- FR: fertirrigazione on Top
 B.Ctop.Cstar.NH.FR  = [ 0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0 ];
@@ -215,7 +215,7 @@ S.CDE.description   = 'MARWA CORRECTED';
 S.CDE.tCinput       = 0.000;
 S.CDE.tCinput_end   = 0.500;
 S.CDE.Cinput        = 0.040;
-% Topt:                 The optimum temperature (°C) for the XXX process
+% Topt:                 The optimum temperature (ï¿½C) for the XXX process
 S.CDE.Topt          = 25;
 % NX:                   Where X = {'H':NH4, 'O':NO3}
 S.CDE.NX.Kf1        = [0.100, 1.000]; % ['NH','NO']
