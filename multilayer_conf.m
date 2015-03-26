@@ -12,7 +12,6 @@ proj.ipath          = '/home/giuliano/git/multilayer';
 %                       performed to ensure that new simulations do not
 %                       overwrite old ones, if not needed.
 proj.opath          = '/home/giuliano/git/multilayer/output/';
-
 %%   WATER INPUT
 % ----------------------------------
 
@@ -77,8 +76,10 @@ W.iCtopvar          = 1;
 W.itbc              = 0; % (0=flux; 1=potential)
 W.ibbc              = 2; % (0=flux; 1=potential; 2=gradient)
 
+% Can I use W.hqsurf instead of the two following???
 W.hsurf             = 9999;
 W.qsurf             = 0.1;
+
 W.hbot              = -0.0;
 W.qbot              = 9999;
 W.grad              = 1.0;
@@ -166,27 +167,27 @@ B.Ctop.Cstar.ORG.sw = [ 0.02565	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	
 
 V.description       = 'prova Lodi Arm_Art vegetation';%--> 'the plant used was...'
 V.nET               = 126;
-V.extf              = 0.6;
-V.ifs               = 1;
-V.ifg               = 1;
-V.hI                = -1;
-V.hII               = 10;
-V.hIIIH             = -400;
-V.hIIIL             = -600;
-V.hIV               = -8000;
-V.hw50              = -1000;
-V.pw1               = 3;
-V.hs50              = -1500;
-V.ps1               = 3;
-V.aMH               = -760;
-V.bMH               = 0.000794;
-V.rda               = 1.027;
-V.rdb               = 15.016;
-V.rdc               = 0.074;
-V.zc                = 25;
-V.g0                = 0.032;
-V.gzc               = 0.008;
-V.Drf               = 85;
+V.extf              = 0.6;  % esponente legge Beers
+V.ifs               = 1;    % indicatore funz. sink {Feddes, vanGen.} 
+V.ifg               = 1;    % indicatore funz. distribuz. appar.rad.
+V.hI                = -1;   % pot. stress idrico Feddes
+V.hII               = 10;   % pot. stress idrico Feddes
+V.hIIIH             = -400; % pot. stress idrico Feddes
+V.hIIIL             = -600; % pot. stress idrico Feddes
+V.hIV               = -8000;% pot. stress idrico Feddes
+V.hw50              = -1000;% pot.idrico dimezzamento traspirazione van Genuchten
+V.pw1               = 3;    % esponente stress idrico van Genuchten
+V.hs50              = -1500;% pot.osmotico dimezzamento traspirazione van Genuchten
+V.ps1               = 3;    % esp.stress osmotico van Genuchten
+V.aMH               = -760; % par. stress osmotico Mass & Hofmann
+V.bMH               = 0.000794;% par. stress osmotico Mass & Hofmann
+V.rda               = 1.027;% par. distribuzione radici logistica
+V.rdb               = 15.016;% par. distribuzione radici logistica
+V.rdc               = 0.074;% par. distribuzione radici logistica
+V.zc                = 25;   % par.distribuzione radici doppia-lineare
+V.g0                = 0.032;% par.distribuzione radici doppia-lineare
+V.gzc               = 0.008;% par.distribuzione radici doppia-lineare
+V.Drf               = 85;   % par.distribuzione radici doppia-lineare
 % **DATA** [we can also use "load" from external file]
 V.tqstar            = 0:1:V.nET-1;
 V.ETr               = [ 0.961	0.361	0.361	1.325	0.314	0.489	0.489	0.472	0.489	0.489	0.911	0.489	0.489	0.492	0.389	0.417	0.417	0.407	0.407	0.647	0.647	0.833	0.833	0.8	0.69	0.69	0.685	0.685	0.518	0.518	0.5	0.858	0.858	0.661	0.661	0.638	0.638	0.6	0.578	0.578	0.623	0.623	0.516	0.516	0.6	0.52	0.52	0.451	0.451	0.443	0.443	0.4	0.4	0.4	0.526	0.526	0.463	0.463	0.4	0.526	0.526	0.611	0.611	0.6	0.6	0.6	0.402	0.402	0.598	0.598	0.593	0.593	0.6	0.637	0.637	0	0.527	0.527	0.5	0.5	0.575	0.575	0.55	0.499	0.499	0.5	0.5	0.5	0.5	0.499	0.499	0.5	0.5	0.508	0.508	0.5	0.462	0.462	0.5	0.5	0.518	0.518	0.5	0.426	0.426	0.5	0.5	0.463	0.463	0.5	0.437	0.437	0.4	0.4	0.401	0.401	0.4	0.4	0.4	0.4	0.4	0.568	0.568	0.4	0.405	0.405 ];

@@ -1,4 +1,7 @@
 function sink = fnsink( x, P, W, V )
+% sink = fnsink( x, P, W, V )
+% 
+% DESCR
 %x=h1(i,j)
 %dpt=z(i)
 %op=EC(i,j)
@@ -10,15 +13,15 @@ arw                     = 0;
 ars                     = 0;
 if P.Droot>0
     switch V.ifg
-        case 1
+        case 1% linear distribution
             gz          = 1/P.Droot;
-        case 2
+        case 2% logistic distribution
             gz          = V.rda*V.rdb*V.rdc*exp(V.rdc*P.dpt) / ...
                           (V.rdb+exp(V.rdc*P.dpt))^2;
-        case 3
+        case 3% Prasad-type distribution
             gz          = 2*(P.Droot-P.dpt)/P.Droot^2;
             
-        case 4
+        case 4% two-linear distribution
             if P.Droot<=V.zc
                 gz      = 1/P.Droot;
             else
@@ -41,9 +44,9 @@ end
 % FEDDES water reduction factor with uniform root distribution
 if V.ifs==1
     if P.Droot>0
-        Sa              = W.tp*gz;
+        Sa              = P.Tp*gz; % sink potenziale
         if x>=V.hI
-            arw         = 0;
+            arw         = 0;% fattore di riduzione
         elseif and(x>=V.hII,x<V.hI)
             arw         = (V.hI-x)/(V.hI-V.hII);
         elseif and(x>=V.hIIIL,x<V.hII)
@@ -51,16 +54,16 @@ if V.ifs==1
         elseif and(x>=V.hIV,x<V.hIIIL)
             arw         = (x-V.hIV)/(V.hIIIL-V.hIV);
         end
-    sink                = Sa*arw;
+    sink                = Sa*arw;% sink effettivo che entra in Richards
     else
-    sink=0;
+        sink            = 0;
     end
 end
 
 % FEDDES water reduction factor with logistic root distribution
 if V.ifs==2
     if P.Droot>0
-    Sa                  = W.tp*gz;
+    Sa                  = P.Tp*gz;
         if x>=V.hI
             arw         = 0;
         elseif and(x>=V.hII,x<V.hI)
@@ -80,7 +83,7 @@ end
 % van Genuchten water reduction factor with uniform root distribution
 if V.ifs==3
     if P.Droot>0
-        Sa              = W.tp*gz;
+        Sa              = P.Tp*gz;
         arw             = 1/(1+(x/V.hw50)^V.pw1);
         sink            = Sa*arw;
     else
@@ -91,7 +94,7 @@ end
 % Maas&Hoffman salinity reduction factor with uniform root distribution
 if V.ifs==4
     if P.Droot>0
-    Sa                  = W.tp*gz;
+    Sa                  = P.Tp*gz;
         if and(P.op>=V.aMH,P.op<=0)
             ars         = 1;
         elseif and(P.op>=V.aMH-1/V.bMH,P.op<=V.aMH)
@@ -108,7 +111,7 @@ end
 % van Genuchten salinity reduction factor with uniform root distribution
 if V.ifs==5
     if P.Droot>0
-        Sa              = W.tp*gz;
+        Sa              = P.Tp*gz;
         ars             = 1/(1+(P.op/V.hs50)^V.ps1);
         sink            = Sa*ars;
     else
@@ -119,7 +122,7 @@ end
 % van Genuchten multiplicative water and salinity reduction factor with uniform root distribution
 if V.ifs==6
     if P.Droot>0
-        Sa              = W.tp*gz;
+        Sa              = P.Tp*gz;
         arw             = 1/(1+(x/V.hw50)^V.pw1);
         ars             = 1/(1+(P.op/V.hs50)^V.ps1);
         sink            = Sa*arw*ars;
@@ -131,7 +134,7 @@ end
 % Multiplicative FEDDES water and Maas&Hoffman salinity reduction factors with uniform root distribution
 if V.ifs==7
     if P.Droot>0
-        Sa              = W.tp*gz;
+        Sa              = P.Tp*gz;
         if x>=V.hI
             arw         = 0;
         elseif and(x>=V.hII,x<V.hI)

@@ -1,5 +1,5 @@
-function P = solute_transport_ADE_N( P, W, S, B )
-% P = solute_transport_ADE_N( P, W, S, B )
+function P = solute_transport_ADE_N( P, W, S, B, mm )
+% P = solute_transport_ADE_N( P, W, S, B, mm )
 % 
 % DESCRIPTION
 %   This function accounts for two forms of N, namely NO3 and NH4.
@@ -51,7 +51,7 @@ if P.j==1% first iteration
     P.C1(:,1,P.j)       = S.CDE.Cin.NH;
     P.C1(:,2,P.j)       = S.CDE.Cin.NO;
 elseif P.j>P.jstar% when?
-    P.C1(:,:,P.j)       = P.C2(:,:,P.j-1); % --> assgnment before use? 
+    P.C1(:,:,P.j)       = O.C2(:,:,P.j-1,mm); % --> assgnment before use? 
 elseif P.j==P.jstar% when?
     P.C1(:,:,P.j)       = P.C1star(:,:,P.j);
 end
@@ -172,7 +172,7 @@ end
 % soluzione equazione convezione dispersione :: START
 % -----------------------------------------------------------------------
 for sl=1:2
-    fluxin              = P.fluxsurf(P.j);
+    fluxin              = O.fluxsurf(1,P.j,mm);
     C1top               = P.Cinput(sl);
     lambdatop           = S.CDE.lambda(1);
 
@@ -269,30 +269,38 @@ for sl=1:2
             C2_tot                  = C2phys + C2_chem;
 
             if S.CDE.NX.Kf2(sl)==1
-                P.C2(i,sl,P.j)      = ( C2phys*P.teta(i,P.j) + P.dap(i)*S.CDE.NX.Kf1(sl)*P.C1(i,sl,P.j) + SsSk*W.dt ) ...
+                O.C2(i,sl,P.j,mm) = ( C2phys*P.teta(i,P.j) + P.dap(i)*S.CDE.NX.Kf1(sl)*P.C1(i,sl,P.j) + SsSk*W.dt ) ...
                                               / ( fnteta( W.hfc, P, i ) + P.dap(i)*S.CDE.NX.Kf1(sl) );
             else    
 %% Bisection method
 % Bisection method (vedi libro con esercizi numerici in Matlab) for
 % adsorbing solutes with Freundlich f_bis_sol � la funzione di cui si vuole
 % trovare lo zero.
-% E' bene fissare un limite inferiore per P.C2(i,P.j)=10^k per eliminare
+% E' bene fissare un limite inferiore per O.C2(i,sl,P.j,mm)=10^k per eliminare
 % eventuali valori negativi ed evitare problemi di convergenza del metodo.
                 if C2_tot < 10^-9
                     C2phys          = 0;
-                    P.C2(i,sl,P.j)  = C2phys;
+                    O.C2(i,sl,P.j,mm) = C2phys;
                 else
-                    P.C2(i,sl,P.j)  = mln_bisection( P.teta(i,P.j),P.dap(i),P.S1(i,sl,P.j), ...
-                                        S.CDE.NX.Kf1(sl),S.CDE.NX.Kf2(sl),C2phys,SsSk,W.dt );
+                f_bis_sol       = @(yps) ...
+                    P.teta(i,P.j)*yps        - ...
+                    P.teta(i,P.j)*C2phys     + ...
+                    P.dap(i)*S.CDE.NX.Kf1(sl)*yps^S.CDE.NX.Kf2(sl) - ...
+                    P.dap(i)*P.S1(i,sl,P.j)          - ...
+                    SsSk*W.dt;
+
+                    O.C2(i,sl,P.j,mm)  = mln_bisection( f_bis_sol, -100, 100, -30 );
+                    %mln_bisection( P.teta(i,P.j),P.dap(i),P.S1(i,sl,P.j), ...
+                                        %S.CDE.NX.Kf1(sl),S.CDE.NX.Kf2(sl),C2phys,SsSk,W.dt );
                 end
             end
         end
         %-----------------------------------------------------------------
         % operazioni prima di passare al prossimo strato:
-        P.C2(P.istar(jj+1)+1,sl,P.j)        = P.C2(P.istar(jj+1),sl,P.j);
+        O.C2(P.istar(jj+1)+1,sl,P.j,mm)   = O.C2(P.istar(jj+1),sl,P.j,mm);
 
         % USELESS --> ??DELETE??
-        C1top                               = P.C2(P.istar(jj+1)+1,sl,P.j);
+        C1top                               = O.C2(P.istar(jj+1)+1,sl,P.j,mm);
         fluxin                              = P.flux(P.istar(jj+1)+1);
         % USELESS --> ??DELETE??
         

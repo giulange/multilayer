@@ -4,10 +4,10 @@ function h2 = fnsyst( P, W )
 %% init
 h2              = NaN( W.nz, 1);
 
-%% definire km(i) [è il (ki-1/2)] e il kp(i) [è il (ki+1/2)] 
+%% definire km(i) [ï¿½ il (ki-1/2)] e il kp(i) [ï¿½ il (ki+1/2)] 
 
 kp(1,1)         = (P.kond(1,P.j) + P.kond(2,P.j))/2;
-teta_hbot       = fnteta( W.hbot,  P, W.nz );
+teta_hbot       = fnteta( W.hbot,   P, W.nz );
 teta_hsurf      = fnteta( W.hsurf, P, 1    );
     
 if or(P.ifc==1,P.ifc==3)
@@ -38,19 +38,19 @@ delta(i,1)      = P.cap(i,P.j) .* P.h1(i,P.j) + ...
 %% top node flux (positive upward)
 % i               = W.nz-1; % ==> i=1; Is it correct??
 i               = 1;
-warning('Antonio wrote i=W.nz-1 (bottom), instead it should be i=1(top)')
-ratio(1,1)      = 2*W.dtin/(P.dz(i).^2);
-alfa(1,1)       = 0;
-gamma(1,1)      = -ratio(1)*kp(1);
-if W.itbc==0
-    beta(1,1)   = P.cap(1,P.j) + ratio(1)*kp(1);
-    delta(1,1)  = P.cap(1,P.j)*P.h1(1,P.j) - ...
-                  P.dz(i)*ratio(1)*(W.qsurf+kp(1)) - W.dtin*P.sink(1,P.j);
+% warning('Antonio wrote i=W.nz-1 (bottom), instead it should be i=1(top)')
+ratio(i,1)      = 2*W.dtin/(P.dz(i).^2);
+alfa(i,1)       = 0;
+gamma(i,1)      = -ratio(i)*kp(i);
+if W.itbc==0 % itbc differenzia hsurf da qsurf, visto che adesso abbiamo unificato in hqsurf?
+    beta(i,1)   = P.cap(i,P.j) + ratio(i)*kp(i);
+    delta(i,1)  = P.cap(i,P.j)*P.h1(i,P.j) - ...
+                  P.dz(i)*ratio(i)*(W.qsurf+kp(i)) - W.dtin*P.sink(i,P.j);
 else
-    beta(1,1)   = P.cap(1,P.j) + ratio(1)*km(1) + ratio(1)*kp(1);
-    delta(1,1)  = P.cap(1,P.j)*P.h1(1,P.j) - ...
-                  P.dz(i)*ratio(1)*(km(1)-kp(1)) + ...
-                  ratio(1)*km(1)*W.hsurf - W.dtin*P.sink(1,P.j);
+    beta(i,1)   = P.cap(i,P.j) + ratio(i)*km(i) + ratio(i)*kp(i);
+    delta(i,1)  = P.cap(i,P.j)*P.h1(i,P.j) - ...
+                  P.dz(i)*ratio(i)*(km(i)-kp(i)) + ...
+                  ratio(i)*km(i)*W.hsurf - W.dtin*P.sink(i,P.j);
 end
 
 %% bottom node flux
@@ -70,9 +70,11 @@ else
                   ratio(W.nz)*kp(W.nz)*W.hbot-W.dtin*P.sink(W.nz,P.j);
 end
 
+% algoritmo di Thomas
 BB(1,1)         = gamma(1)/beta(1);
 AA(1,1)         = delta(1)/beta(1);
 
+% metodo della sostituzione
 for i=2:1:W.nz
     CC(i,1)     = beta(i) - alfa(i).*BB(i-1);
     AA(i,1)     = ( delta(i) - alfa(i).*AA(i-1) ) ./ CC(i);
