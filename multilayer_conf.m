@@ -31,14 +31,21 @@ W.isol              = 2;
 W.iosm              = 0;
 W.ads               = 1;
 W.iveg              = 1;
-W.nlay              = 3;
-W.nz                = 100;
 W.dtin              = 0.00001;
 
+% SOIL GRID GEOMETRY:
+% nz:                   Number of nodes defining the geometry of the soil
+%                       column during simulation of water flow. It includes
+%                       the top and the botom boundaries.
+W.nz                = 50;
+% nlay:                 Number of soil layers.
+W.nlay              = 3;
+% zint:                 Soil layer bottom boundaries.
 W.zint              = [25, 60, 300];
 
+% SOIL GRID NODES WITH HYDRAULIC CHARACTERISTICS:
 % W.crc.? --> curva ritenzione/conducibilit�: es. W.crc.dap, W.crc.tetas, ecc. 
-W.d_ap              = [1.1, 1.1, 1.1];
+W.dap               = [1.1, 1.1, 1.1];
 W.tetas             = [0.340, 0.310, 0.300];
 W.tetar             = [0.000, 0.000, 0.000];
 W.alfrs             = [0.000, 0.000, 0.000];
@@ -48,14 +55,14 @@ W.en                = [1.120, 1.140, 1.250];
 W.alfvg2            = [0.0000, 0.0000, 0.0000];
 W.en2               = [0.000, 0.000, 0.000];
 W.ifr               = [1, 1, 1];
-W.hfc               = -333;
-
+W.hfc               = -333; % --> check with Antonio!!
 W.k0                = [50.00, 20.00, 20.00];
 W.k0macr            = [0.000, 0.000, 0.000];
 W.bita              = [0.5, 0.5, 0.5];
 W.bita2             = [9999, 9999, 9999];
 W.ifc               = [1, 1, 1]; 
 
+% ??
 W.vpr               = 0.5;
 W.tetal             = 0.0002;
 W.bital             = 15.0;
@@ -257,10 +264,10 @@ end
 
 %%   MONTECARLO
 % ----------------------------------
-% A.Basile: why not to consider the in-between combination of parameters?
-% i.e., the cartesian product is not by "rows" of montecarlo.txt, but by
-% every single parameter to be stochastically varied.
-
+% to A.Basile:  Why not to consider the in-between combination of
+%               parameters?
+% i.e.          The cartesian product is not by "rows" of montecarlo.txt,
+%               but by every single parameter to be stochastically varied.
 
 if W.MTCL==1
 % nlay:             Define how the list of stochastically defined

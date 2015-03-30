@@ -1,103 +1,124 @@
 function multilayer_save( O )
-%   > O.C2          --> concentrazioni soluti [nodi x tempi x soluti x montecarlo]
-%   > P.h22         --> flussi ai nodi intermedi [nodi x tempi x montecarlo]
-%   > O.fluxsurf    --> flusso al contorno superiore; [tempi x montecarlo]
-%   > P.fluxbot     --> flusso al contorno inferiore; [tempi x montecarlo]
-%   > P.runoff      --> runoff; [tempi x montecarlo]
-%% da scommentare in caso di simulazione MONTECARLO
-[r,c] = size(C);
+% NOTES:
+% 
+% Decide with Antonio: do we print time in rows and nodes in columns? At
+% now I decided like this!
+% 
+% Implement: Set the check for Monte Carlo Simulation in multilayer_prog in
+% order to split for multilayer_save_mcs.m or multilayer_save_norm.m.
+% 
+% Le matrici importanti sono le seguenti:
+%   > O.C2          --> solutes concentrations      [nodes x times x montecarlo x solutes]
+%   > O.h22         --> flussi ai nodi intermedi    [nodes x times x montecarlo]
+%   > O.fluxsurf    --> flusso al contorno superiore[1 x times x montecarlo]
+%   > O.fluxbot     --> flusso al contorno inferiore[1 x times x montecarlo]
+%   > O.runoff      --> runoff                      [1 x times x montecarlo]
+% 
+%   > O.runon       --> in una implementazione futura.
+%
+% I farei in questo modo: conserverei solo le matrici utili
+% elencate sopra, tal quali e senza rimaneggiamenti. inoltre in
+% Initialization prevederei una preallocazione considerando
+% anche il numero di simulazioni montecarlo cos da mantenere
+% tutto quanto - ridotto ai minimi termini - in memoria RAM, e
+% solo alla fine di tutto il run si salva quello che il
+% programma DEVE salvare (le info da salvare possono anche
+% essere configurate dall'utente, per cui si prevede una
+% sezione in 'conf' apposita).
+% 
+% Remember also to account for M.nnc : this can be avoided when a
+% simulation will never be abondoned!
 
-%OPEN file
-fid = fopen( strcat(proj.path,'teta_print',num2str(mm),'.dat'), 'w' );
-%cicli loop
-for riga=1:r
-    for colonna = 1:c
-        v = C(riga,colonna);
-        if  colonna == c
-            fprintf(fid,'%f\n',v);
-        else
-            fprintf(fid,'%f ',v);
-        end
+%% flux at intermediate nodes
+%  to test saving function you can do this:
+%  O.h22 = rand(size(O.h22));
+
+% CREATE filename
+FILE = [proj.opath, O.files.h22];
+% OVERWRITE existing ??
+for ii = 1:length(FILE)
+    if exist( FILE, 'file' ) == 2
+        warning( 'The %s file already exists! It will be re-written!!',FILE )
     end
 end
-state = fclose(fid);
-close;
-
-M.tetasum=C+M.tetasum;
-M.tetasumSQ=(C.^2)+M.tetasumSQ;
-
-
-%%%%MONTECARLO CONCENTRAZIONI%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[rr,cc] = size(D);
-
-%OPEN file
-fid = fopen( strcat(proj.path,'conc_print',num2str(mm),'.dat'), 'ww' );
-%cicli loop
-for riga=1:rr
-    for colonna = 1:cc
-        vv = D(riga,colonna);
-        if  colonna == cc
-            fprintf(fid,'%f\n',vv);
-        else
-            fprintf(fid,'%f ',vv);
-        end
+% OPEN file
+fid = fopen( FILE, 'w' );
+% WRITE file
+for r = 1:size(O.h22,2)      % r is the row of file (not of array)
+    for c = 1:size(O.h22,1)  % c is the col of file (not of array)
+        fprintf(fid,' %7.3f',O.h22(c,r));
+    end
+    fprintf(fid,'\n');
+end
+% CLOSE file
+fclose( fid );
+%% concentration of solutes
+%  to test saving function you can do this:
+%  O.C2 = rand(size(O.C2));
+%% --- ammonia NH4
+% CREATE filename
+FILE = [proj.opath,'NH4_',O.files.C2];
+% OVERWRITE existing ??
+for ii = 1:length(FILE)
+    if exist( FILE, 'file' ) == 2
+        warning( 'The %s file already exists! It will be re-written!!',FILE )
     end
 end
-state = fclose(fid);
-close;
-
-M.concsum=D+M.concsum;
-M.concsumSQ=(D.^2)+M.concsumSQ;
-
-%%%%MONTECARLO FLUSSI%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[rrr,ccc] = size(G);
-
-%OPEN file
-fid = fopen([strcat(proj.path,'flux_i_j',num2str(mm),'.dat')],'ww');
-%cicli loop
-for riga=1:rr
-    for colonna = 1:ccc
-        vvv = G(riga,colonna);
-        if  colonna == ccc
-            fprintf(fid,'%f\n',vvv);
-        else
-            fprintf(fid,'%f ',vvv);
-        end
+% OPEN file
+fid = fopen( FILE, 'w' );
+% WRITE file
+for r = 1:size(O.C2,2)      % r is the row of file (not of array)
+    for c = 1:size(O.C2,1)  % c is the col of file (not of array)
+        fprintf(fid,' %7.3f',O.C2(c,r,1));
+    end
+    fprintf(fid,'\n');
+end
+% CLOSE file
+fclose( fid );
+%% --- nitrate NO3
+% CREATE filename
+FILE = [proj.opath, 'NO3_', O.files.C2];
+% OVERWRITE existing ??
+for ii = 1:length(FILE)
+    if exist( FILE, 'file' ) == 2
+        warning( 'The %s file already exists! It will be re-written!!',FILE )
     end
 end
-state = fclose(fid);
-close;
-
-M.fluxsum=G+M.fluxsum;
-M.fluxsumSQ=(G.^2)+M.fluxsumSQ;
-
-
-tetamed=M.tetasum/(mm-M.nnc);
-tetavar=(mm*M.tetasumSQ-M.tetasum.^2)/((mm-M.nnc)*(mm-M.nnc-1));
-
-concmed=M.concsum/(mm-M.nnc);
-concvar=(mm*M.concsumSQ-M.concsum.^2)/((mm-M.nnc)*(mm-M.nnc-1));
-
-fluxmed=M.fluxsum/(mm-M.nnc);
-fluxvar=(mm*M.fluxsumSQ-M.fluxsum.^2)/((mm-M.nnc)*(mm-M.nnc-1));
-
-eval(['save ''' proj.path 'tetamed.dat'' tetamed -ascii'])
-eval(['save ''' proj.path 'tetavar.dat'' tetavar -ascii'])
-
-eval(['save ''' proj.path 'concmed.dat'' concmed -ascii'])
-eval(['save ''' proj.path 'concvar.dat'' concvar -ascii'])
-
-eval(['save ''' proj.path 'fluxmed.dat'' fluxmed -ascii'])
-eval(['save ''' proj.path 'fluxvar.dat'' fluxvar -ascii'])
-
-% salva matrice di valori
-eval(['save ''' proj.path 'pote_tot.dat'' P.A -ascii'])
-eval(['save ''' proj.path 'pote_print.dat'' B -ascii'])
-eval(['save ''' proj.path 'teta_print.dat'' C -ascii'])
-eval(['save ''' proj.path 'conc_NH4print.dat'' DNH -ascii'])
-eval(['save ''' proj.path 'conc_NOprint.dat'' DNO -ascii'])
-eval(['save ''' proj.path 'sink_print.dat'' E -ascii'])
-eval(['save ''' proj.path 'cap_print.dat'' F -ascii'])
-eval(['save ''' proj.path 'flux_i_j.dat'' G -ascii'])
-eval(['save ''' proj.path 'runoff.dat'' RN -ascii'])
-eval(['save ''' proj.path 'flux_surf_bot.dat'' Qtb -ascii'])
+% OPEN file
+fid = fopen( FILE, 'w' );
+% WRITE file
+for r = 1:size(O.C2,2)      % r is the row of file (not of array)
+    for c = 1:size(O.C2,1)  % c is the col of file (not of array)
+        fprintf(fid,' %7.3f',O.C2(c,r,2));
+    end
+    fprintf(fid,'\n');
+end
+% CLOSE file
+fclose( fid );
+%% flux
+%  to test saving function you can do this:
+%  O.fluxsurf   = rand(size(O.fluxsurf));
+%  O.fluxbot    = rand(size(O.fluxbot));
+%  O.runoff     = rand(size(O.runoff));
+flux    = [ O.fluxsurf; O.fluxbot; O.runoff; ];
+% CREATE filename
+FILE = [proj.opath,O.files.flux];
+% OVERWRITE existing ??
+for ii = 1:length(FILE)
+    if exist( FILE, 'file' ) == 2
+        warning( 'The %s file already exists! It will be re-written!!',FILE )
+    end
+end
+% OPEN file
+fid = fopen( FILE, 'w' );
+% WRITE file
+for r = 1:size(flux,2)      % r is the row of file (not of array)
+    for c = 1:size(flux,1)  % c is the col of file (not of array)
+        fprintf(fid,' %7.3f',flux(c,r));
+    end
+    fprintf(fid,'\n');
+end
+% CLOSE file
+fclose( fid );
+%% end
+return

@@ -1,5 +1,5 @@
-function P = solute_transport_ADE_N( P, W, S, B, mm )
-% P = solute_transport_ADE_N( P, W, S, B, mm )
+function P = solute_transport_ADE_N( P, W, S, B, O, mm )
+% P = solute_transport_ADE_N( P, W, S, B, O, mm )
 % 
 % DESCRIPTION
 %   This function accounts for two forms of N, namely NO3 and NH4.
@@ -43,25 +43,25 @@ CNH4_ORG_rp             = 0;
 CNH4_ORG_sw             = 0;
 CNH4_pn                 = NaN(W.nz,1);
 CNO_pn                  = NaN(W.nz,1);
-
+C1                      = NaN(W.nz,2);
+S1                      = NaN(W.nz,2);
 %% update intial concentrations
 
 if P.j==1% first iteration
     % [W.dz,1:2,P.Nj]
-    P.C1(:,1,P.j)       = S.CDE.Cin.NH;
-    P.C1(:,2,P.j)       = S.CDE.Cin.NO;
-elseif P.j>P.jstar% when?
-    P.C1(:,:,P.j)       = O.C2(:,:,P.j-1,mm); % --> assgnment before use? 
-elseif P.j==P.jstar% when?
-    P.C1(:,:,P.j)       = P.C1star(:,:,P.j);
+    C1(:,1)             = S.CDE.Cin.NH;
+    C1(:,2)             = S.CDE.Cin.NO;
+elseif P.j>P.jstar% se avanza...
+    C1                  = O.C2(:,P.j-1,mm,:); % --> assgnment before use? 
+elsef P.j==P.jstar% se non puo' avanzare...
+    C1                  = O.C2(:,P.j-1,mm,:);
 end
-P.C1star(:,:,P.j)       = P.C1(:,:,P.j);
 
 % parte adsorbita
 if W.ads==1
     % concentrazione in fase adsorbita (S Freundlich):
-    P.S1(:,1,P.j)       = S.CDE.NX.Kf1(1)*P.C1(:,1,P.j).^S.CDE.NX.Kf2(1);
-    P.S1(:,2,P.j)       = S.CDE.NX.Kf1(2)*P.C1(:,2,P.j).^S.CDE.NX.Kf2(2);
+    S1(:,1)       = S.CDE.NX.Kf1(1)*C1(:,1).^S.CDE.NX.Kf2(1);
+    S1(:,2)       = S.CDE.NX.Kf1(2)*C1(:,2).^S.CDE.NX.Kf2(2);
 end
 %% ?? define cell / delete cell ??                
 
@@ -89,16 +89,16 @@ for i=1:P.kk
 
     % Calcolo numero di nodi nello strato di interramento
     % del concime azotato:
-    idL                 = B.Ctop.dL/P.dz(1) +1; % <-- viene decimale, corretto??
+    idL                 = B.Ctop.dL/P.nodes.dz(1) +1; % <-- viene decimale, corretto??
     
     % Calcolo del fattore di riduzione del coefficiente di nitrificazione
     % (vedi Gusman et al, 1999. Analytical Modeling of Nitrogen Dynamics in
     % soil and groundwater. J.of Irrigation and Drainage Engineering.
     for k=1:idL
-        if P.teta(k,P.j)<=P.tetafc(1)
-            Fmw         = Fmw + P.teta(k,P.j)/P.tetafc(1); % / idL
+        if P.teta(k,P.j)<=P.sh.tetafc(1)
+            Fmw         = Fmw + P.teta(k,P.j)/P.sh.tetafc(1); % / idL
         else
-            Fmw         = Fmw + P.tetafc(1)/P.teta(k,P.j); % / idL
+            Fmw         = Fmw + P.sh.tetafc(1)/P.teta(k,P.j); % / idL
         end
     end
     % Il fattore di riduzione non viene calcolato nodo per nodo ma viene
@@ -182,81 +182,74 @@ for sl=1:2
 %     Kdntr_top           = S.CDE.Kdenitr(i);
     % --Non li usi--
 
-    while jj<=W.nlay
-        for i=P.istar(jj)+1:P.istar(jj+1)
+    while jj<=W.nlay                                    % |--> substitute these two with "for inode = 1:W.nz, ..., end"
+        for i=P.nodes.cumsum(jj)+1:P.nodes.cumsum(jj+1) %/
             % bot-cond for current layer
             % ...there is something not good in these statements...
-            if i == P.istar(jj+1)
-                P.C1(P.istar(jj+1)+1,sl,P.j)    = P.C1(P.istar(jj+1),sl,P.j);
-                S.CDE.lambda(P.istar(jj+1)+1)   = S.CDE.lambda(P.istar(jj+1));
-                S.CDE.Knitr(P.istar(jj+1)+1)    = S.CDE.Knitr(P.istar(jj+1));
-                S.CDE.Kimmob(P.istar(jj+1)+1)   = S.CDE.Kimmob(P.istar(jj+1));
-                S.CDE.Kdenitr(P.istar(jj+1)+1)  = S.CDE.Kdenitr(P.istar(jj+1));
+            if i == P.nodes.cumsum(jj+1)
+                C1(P.nodes.cumsum(jj+1)+1,sl)          = C1(P.nodes.cumsum(jj+1),sl);
+                S.CDE.lambda(P.nodes.cumsum(jj+1)+1)   = S.CDE.lambda(P.nodes.cumsum(jj+1));
+                S.CDE.Knitr(P.nodes.cumsum(jj+1)+1)    = S.CDE.Knitr(P.nodes.cumsum(jj+1));
+                S.CDE.Kimmob(P.nodes.cumsum(jj+1)+1)   = S.CDE.Kimmob(P.nodes.cumsum(jj+1));
+                S.CDE.Kdenitr(P.nodes.cumsum(jj+1)+1)  = S.CDE.Kdenitr(P.nodes.cumsum(jj+1));
             end
 
-            % ?? DELETE ??
-            % questa roba qui non la puoi scrivere qua dentro, semmai
-            % andrebbe fuori di questa funzione!!
-            P.dz(P.istar(jj+1))     = W.zint(jj+1)-P.z(P.istar(jj+1));
-            P.dz(W.nz+1)            = P.dzbot;
-            % ?? DELETE ??
-            
-            P.flux(W.nz+1,P.j)      = P.fluxbot(P.j);
+            P.flux(W.nz+1,P.j)      = O.fluxbot(1,P.j,mm);
             lambdaup                = (S.CDE.lambda(1)+lambdatop)/2;
             lambdalow               = (S.CDE.lambda(1)+S.CDE.lambda(2))/2;
-            if i==P.istar(jj)+1
-                fluxup              = ((P.flux(P.istar(jj)+1,P.j)+fluxin)/2);
-                fluxlow             = ((P.flux(P.istar(jj)+1,P.j)+P.flux(P.istar(jj)+2,P.j))/2);
-                C1up                = (P.C1(P.istar(jj)+1,sl,P.j)+C1top)/2;         
-                C1low               = (P.C1(P.istar(jj)+1,sl,P.j)+P.C1(P.istar(jj)+2,sl,P.j))/2;
+            if i==P.nodes.cumsum(jj)+1
+                fluxup              = ((P.flux(P.nodes.cumsum(jj)+1,P.j)+fluxin)/2);
+                fluxlow             = ((P.flux(P.nodes.cumsum(jj)+1,P.j)+P.flux(P.nodes.cumsum(jj)+2,P.j))/2);
+                C1up                = (C1(P.nodes.cumsum(jj)+1,sl)+C1top)/2;         
+                C1low               = (C1(P.nodes.cumsum(jj)+1,sl)+C1(P.nodes.cumsum(jj)+2,sl))/2;
                 if i>1
-                    lambdaup        = (S.CDE.lambda(P.istar(jj)+1)+S.CDE.lambda(P.istar(jj)))/2;                
-                    lambdalow       = (S.CDE.lambda(P.istar(jj)+1)+S.CDE.lambda(P.istar(jj)+2))/2;
+                    lambdaup        = (S.CDE.lambda(P.nodes.cumsum(jj)+1)+S.CDE.lambda(P.nodes.cumsum(jj)))/2;                
+                    lambdalow       = (S.CDE.lambda(P.nodes.cumsum(jj)+1)+S.CDE.lambda(P.nodes.cumsum(jj)+2))/2;
                 end
             else
                 fluxup              = ((P.flux(i,P.j)+P.flux(i-1,P.j))/2);
                 fluxlow             = ((P.flux(i,P.j)+P.flux(i+1,P.j))/2);
-                C1up                = (P.C1(i,sl,P.j)+P.C1(i-1,sl,P.j))/2;                
-                C1low               = (P.C1(i,sl,P.j)+P.C1(i+1,sl,P.j))/2;
+                C1up                = (C1(i,sl)+C1(i-1,sl))/2;                
+                C1low               = (C1(i,sl)+C1(i+1,sl))/2;
                 lambdaup            = (S.CDE.lambda(i) + S.CDE.lambda(i-1))/2;                
                 lambdalow           = (S.CDE.lambda(i) + S.CDE.lambda(i+1))/2;
             end
 
             % The following is the discretised Eq. for Cphys (tracer):
             % ...
-            C2one                   = (fluxup*C1up - fluxlow*C1low)/P.dz(i);
-            if i==P.istar(jj)+1
-                C2two               = lambdaup*abs(fluxup)*(C1top-P.C1(i,sl,P.j)) / P.dztop;
+            C2one                   = (fluxup*C1up - fluxlow*C1low)/P.nodes.dz(i);
+            if i==P.nodes.cumsum(jj)+1
+                C2two               = lambdaup*abs(fluxup)*(C1top-C1(i,sl)) / P.nodes.dz(1);
             else                
-                C2two               = lambdaup*abs(fluxup)*(P.C1(i-1,sl,P.j)-P.C1(i,sl,P.j)) / P.dz(i);
+                C2two               = lambdaup*abs(fluxup)*(C1(i-1,sl)-C1(i,sl)) / P.nodes.dz(i);
             end
-            C2three                 = lambdalow*abs(fluxlow)*(P.C1(i,sl,P.j)-P.C1(i+1,sl,P.j))/P.dz(i);
-            C2_phys                 = W.dt*(-C2one + ((C2two-C2three)/P.dz(i)));
+            C2three                 = lambdalow*abs(fluxlow)*(C1(i,sl)-C1(i+1,sl))/P.nodes.dz(i);
+            C2_phys                 = W.dt*(-C2one + ((C2two-C2three)/P.nodes.dz(i)));
             % [g cm-3 H2O]
-            C2phys                  = ( C2_phys + P.C1(i,sl,P.j)*P.teta(i,P.j) ) / P.teta(i,P.j);
+            C2phys                  = ( C2_phys + C1(i,sl)*P.teta(i,P.j) ) / P.teta(i,P.j);
             
-            if P.teta(i,P.j)<P.tetafc(i)
-                teta_ratio          = P.teta(i,P.j)/P.tetafc(i);
+            if P.teta(i,P.j)<P.sh.tetafc(i)
+                teta_ratio          = P.teta(i,P.j)/P.sh.tetafc(i);
             else
-                teta_ratio          = P.tetafc(i)/P.teta(i,P.j);
+                teta_ratio          = P.sh.tetafc(i)/P.teta(i,P.j);
             end
-            C2_ntf_lq               = S.CDE.Knitr(i)*1.07^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*teta_ratio*P.C1(i,1,P.j)*P.teta(i,P.j);
-            C2_ntf_sd               = S.CDE.Knitr(i)*1.07^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*teta_ratio*P.dap(i)*P.S1(i,1,P.j);
+            C2_ntf_lq               = S.CDE.Knitr(i)*1.07^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*teta_ratio*C1(i,1)*P.teta(i,P.j);
+            C2_ntf_sd               = S.CDE.Knitr(i)*1.07^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*teta_ratio*P.sh.dap(i)*S1(i,1);
             % attingimento selettivo:
-            C2_sink                 = S.CDE.NX.Kr(sl)*P.sink(i,P.j)*P.C1(i,sl,P.j);
+            C2_sink                 = S.CDE.NX.Kr(sl)*P.sink(i,P.j)*C1(i,sl);
 
             if sl==1
                 % SsSk: Source-Sink for solutes [g cm-3 suolo day-1]
                 SsSk                = -C2_ntf_lq -C2_ntf_sd -C2_sink + CNH4_pn(i);
             elseif sl==2
                 % Sm(z,t), Eq. 16
-                C2_immb             = S.CDE.Kimmb(i)*1.05^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*teta_ratio*P.C1(i,2,P.j)*P.teta(i,P.j);
+                C2_immb             = S.CDE.Kimmb(i)*1.05^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*teta_ratio*C1(i,2)*P.teta(i,P.j);
                 
                 % teta_tsh: the threshold water content for de-nitrification:
-                teta_tsh            = 0.627*P.tetafc(i)-0.0267*(P.tetas(i)-P.teta(i,P.j))/P.tetas(i)*P.tetafc(i);
+                teta_tsh            = 0.627*P.sh.tetafc(i)-0.0267*(P.sh.tetas(i)-P.teta(i,P.j))/P.sh.tetas(i)*P.sh.tetafc(i);
                 if P.teta(i,P.j)>teta_tsh
                     % Sd(z,t), Eq. 17
-                    C2_dntf         = S.CDE.Kdntr(i)*1.07^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*(P.teta(i,P.j)-teta_tsh)/(P.tetafc(i)-teta_tsh)*P.C1(i,2,P.j)*P.teta(i,P.j);
+                    C2_dntf         = S.CDE.Kdntr(i)*1.07^(B.Ctop.Tstar(P.kk)-S.CDE.Topt)*(P.teta(i,P.j)-teta_tsh)/(P.sh.tetafc(i)-teta_tsh)*C1(i,2)*P.teta(i,P.j);
                 else
                     C2_dntf         = 0;
                 end
@@ -265,43 +258,43 @@ for sl=1:2
             end
             
             % � giusto aggiungere P.C1?? Risponde Antonio...
-            C2_chem                 = ( SsSk*W.dt + P.C1(i,sl,P.j)*P.teta(i,P.j) ) /P.teta(i,P.j);
+            C2_chem                 = ( SsSk*W.dt + C1(i,sl)*P.teta(i,P.j) ) /P.teta(i,P.j);
             C2_tot                  = C2phys + C2_chem;
 
             if S.CDE.NX.Kf2(sl)==1
-                O.C2(i,sl,P.j,mm) = ( C2phys*P.teta(i,P.j) + P.dap(i)*S.CDE.NX.Kf1(sl)*P.C1(i,sl,P.j) + SsSk*W.dt ) ...
-                                              / ( fnteta( W.hfc, P, i ) + P.dap(i)*S.CDE.NX.Kf1(sl) );
+                O.C2(i,P.j,mm,sl) = ( C2phys*P.teta(i,P.j) + P.sh.dap(i)*S.CDE.NX.Kf1(sl)*C1(i,sl) + SsSk*W.dt ) ...
+                                              / ( fnteta( W.hfc, P.sh, i ) + P.sh.dap(i)*S.CDE.NX.Kf1(sl) );
             else    
 %% Bisection method
 % Bisection method (vedi libro con esercizi numerici in Matlab) for
 % adsorbing solutes with Freundlich f_bis_sol � la funzione di cui si vuole
 % trovare lo zero.
-% E' bene fissare un limite inferiore per O.C2(i,sl,P.j,mm)=10^k per eliminare
+% E' bene fissare un limite inferiore per O.C2(i,P.j,mm,sl)=10^k per eliminare
 % eventuali valori negativi ed evitare problemi di convergenza del metodo.
                 if C2_tot < 10^-9
                     C2phys          = 0;
-                    O.C2(i,sl,P.j,mm) = C2phys;
+                    O.C2(i,P.j,mm,sl) = C2phys;
                 else
                 f_bis_sol       = @(yps) ...
                     P.teta(i,P.j)*yps        - ...
                     P.teta(i,P.j)*C2phys     + ...
-                    P.dap(i)*S.CDE.NX.Kf1(sl)*yps^S.CDE.NX.Kf2(sl) - ...
-                    P.dap(i)*P.S1(i,sl,P.j)          - ...
+                    P.sh.dap(i)*S.CDE.NX.Kf1(sl)*yps^S.CDE.NX.Kf2(sl) - ...
+                    P.sh.dap(i)*S1(i,sl)          - ...
                     SsSk*W.dt;
 
-                    O.C2(i,sl,P.j,mm)  = mln_bisection( f_bis_sol, -100, 100, -30 );
-                    %mln_bisection( P.teta(i,P.j),P.dap(i),P.S1(i,sl,P.j), ...
+                    O.C2(i,P.j,mm,sl)  = mln_bisection( f_bis_sol, -100, 100, -30 );
+                    %mln_bisection( P.teta(i,P.j),P.sh.dap(i),S1(i,sl), ...
                                         %S.CDE.NX.Kf1(sl),S.CDE.NX.Kf2(sl),C2phys,SsSk,W.dt );
                 end
             end
         end
         %-----------------------------------------------------------------
         % operazioni prima di passare al prossimo strato:
-        O.C2(P.istar(jj+1)+1,sl,P.j,mm)   = O.C2(P.istar(jj+1),sl,P.j,mm);
+        O.C2(P.nodes.cumsum(jj+1)+1,P.j,mm,sl)     = O.C2(P.nodes.cumsum(jj+1),P.j,mm,sl);
 
         % USELESS --> ??DELETE??
-        C1top                               = O.C2(P.istar(jj+1)+1,sl,P.j,mm);
-        fluxin                              = P.flux(P.istar(jj+1)+1);
+        C1top                               = O.C2(P.nodes.cumsum(jj+1)+1,P.j,mm,sl);
+        fluxin                              = P.flux(P.nodes.cumsum(jj+1)+1);
         % USELESS --> ??DELETE??
         
         jj                                  = jj+1;

@@ -1,7 +1,5 @@
 %% define internal pars:
-
 err_msg_wrong_par_set       = @(PAR) sprintf('This parameter was set in a wrong way: %s', PAR);
-
 %% check dirs
 if ~exist( proj.ipath, 'dir' )
     error('The Project directory does not exist!')
@@ -27,18 +25,15 @@ end
 %                               W.Nj_shp shape parameter.
 P.Nj                         = round( W.tmax / (10^(W.Nj_shp + ...
                                   mean([log10(W.dtin),log10(W.dtmax)]))) );
-
 %% W.dtin<W.dtmin
 if W.dtin<W.dtmin
     warning('W.dtin=%f < W.dtmin=%f',W.dtin,W.dtmin)
     W.dtin = W.dtmin;
 end
-
 %% condizioni al contorno superiore e inferiore
 % if (W.itopvar==0 && W.ibotvar==0) || (W.itopvar==1 && W.ibotvar==1)
 %     error('W.itopvar=%d cannot be equal to W.ibotvar=%d',W.itopvar,W.ibotvar)
 % end
-
 %% trasporto soluti
 switch W.isol
     case 0
@@ -55,10 +50,8 @@ switch W.isol
             error('check B.Ctop.dL-W.zint(2)')
         end
 end
-
 %% vegetazione
 if ~W.iveg==1, V = NaN; end
-
 %% controllo congruenza W.itopvar, W.iCtopvar, W.iveg)
 if or(W.iveg==1,(and(W.isol==2,W.iCtopvar==1)))
     if W.itopvar==0
@@ -69,7 +62,6 @@ end
 if (W.MTCL==0 && M.nvp>1) || (W.MTCL==1 && M.nvp<2)
     error( err_msg_wrong_par_set( 'M.nvp' ) );
 end
-
 %% montecarlo
 
 if W.MTCL==0
@@ -139,7 +131,6 @@ elseif W.MTCL==1
 else
     error( err_msg_wrong_par_set( 'W.MTCL' ) );
 end
-
 %% cutted code:
 
 % %% condizioni al contorno superiore e inferiore ==> mettere in _conf.m
@@ -167,17 +158,13 @@ end
 %         B.sel.qstar     = NaN; % B.Ctop.qstar does not exist!
 % end
 % 
-% %% vegetazione ==> mettere in _conf.m, solo se non è inutile!!
+% %% vegetazione ==> mettere in _conf.m, solo se non ï¿½ inutile!!
 % if W.iveg==1 % ==> inutile, meglio definire un unico tqstar per tutto il programma!! 
 %     B.sel.name          = 'veg';
 %     B.sel.tqstar        = V.tqstar;
-% %     B.sel.qstar         = B.bot.hqstar; % ??non c'è??
+% %     B.sel.qstar         = B.bot.hqstar; % ??non c'ï¿½??
 % end
-
 %% ...something else?
-
 %% include checks on EC (in particular EC.matrix!!)
-
 %% end
-
 clear err_msg_wrong_par_set
