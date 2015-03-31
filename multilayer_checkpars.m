@@ -23,8 +23,19 @@ end
 % Nj:                        Number of iterations as a function 
 %                               f(W.tmax,W.dtin,W.dtmax) according to the
 %                               W.Nj_shp shape parameter.
-P.Nj                         = round( W.tmax / (10^(W.Nj_shp + ...
+P.Nj                        = round( W.tmax / (10^(W.Nj_shp + ...
                                   mean([log10(W.dtin),log10(W.dtmax)]))) );
+%% soil geometry
+W.sg.sublayers_names        = {'SoilLay','SubLay','hSubLay','hNode','nNodes'};
+if W.sg.type == 1
+    P.nz = W.sg.regular(1);
+elseif W.sg.type == 2
+    P.nz = sum(W.sg.sublayers(:,5));
+else
+    error('Type of soil geometry not properly set!')
+end
+% other?
+% ...
 %% W.dtin<W.dtmin
 if W.dtin<W.dtmin
     warning('W.dtin=%f < W.dtmin=%f',W.dtin,W.dtmin)

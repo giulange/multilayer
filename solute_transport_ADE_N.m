@@ -41,10 +41,10 @@ CNH4_UR                 = 0;
 CNH3_UR                 = 0; %--> la calcoli ma non la usi!!!!
 CNH4_ORG_rp             = 0;
 CNH4_ORG_sw             = 0;
-CNH4_pn                 = NaN(W.nz,1);
-CNO_pn                  = NaN(W.nz,1);
-C1                      = NaN(W.nz,2);
-S1                      = NaN(W.nz,2);
+CNH4_pn                 = NaN(P.nz,1);
+CNO_pn                  = NaN(P.nz,1);
+C1                      = NaN(P.nz,2);
+S1                      = NaN(P.nz,2);
 %% update intial concentrations
 
 if P.j==1% first iteration
@@ -153,7 +153,7 @@ POOL_NO_SD              = CNO_SD; % [g cm-2]
 % Una volta costituito, il POOL si assume distribuito per l'intero spessore
 % di suolo B.Ctop.dL ==> lo si divide per B.Ctop.dL e si ottiene una
 % concnetrazione in g/cm3 di suolo.
-for i=1:W.nz
+for i=1:P.nz
     if i<=idL
         % se sono nello spessore di interramento:
         CNH4_pn(i)      = POOL_NH4_SD / B.Ctop.dL;
@@ -182,7 +182,7 @@ for sl=1:2
 %     Kdntr_top           = S.CDE.Kdenitr(i);
     % --Non li usi--
 
-    while jj<=W.nlay                                    % |--> substitute these two with "for inode = 1:W.nz, ..., end"
+    while jj<=W.nlay                                    % |--> substitute these two with "for inode = 1:P.nz, ..., end"
         for i=P.nodes.cumsum(jj)+1:P.nodes.cumsum(jj+1) %/
             % bot-cond for current layer
             % ...there is something not good in these statements...
@@ -194,7 +194,7 @@ for sl=1:2
                 S.CDE.Kdenitr(P.nodes.cumsum(jj+1)+1)  = S.CDE.Kdenitr(P.nodes.cumsum(jj+1));
             end
 
-            P.flux(W.nz+1,P.j)      = O.fluxbot(1,P.j,mm);
+            P.flux(P.nz+1,P.j)      = O.fluxbot(1,P.j,mm);
             lambdaup                = (S.CDE.lambda(1)+lambdatop)/2;
             lambdalow               = (S.CDE.lambda(1)+S.CDE.lambda(2))/2;
             if i==P.nodes.cumsum(jj)+1

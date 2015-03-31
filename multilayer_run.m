@@ -15,6 +15,12 @@ run multilayer_conf.m
 fpf('Checking vars...')
 run multilayer_checkpars.m
 
+
+% *****TEMPORARY*****
+fpf('Temporary condition waiting for an exhaustive input framework...')
+run multilayer_data_tmp
+
+
 fpf('Running prog...')
 run multilayer_prog.m
 

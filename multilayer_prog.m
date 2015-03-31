@@ -1,98 +1,10 @@
 %% initialization
-
-% We need a standard:
-%   possible indexes are --> { node, time, montecarlo, solute? }
-%   These are the rules:
-%   ---to-be-saved---
-%   (1) node, (2) time, (3) montecarlo, (4) solute;
-%   (1) node, (2) time, (3) montecarlo;
-%   (1) 1,    (2) time, (3) montecarlo;
-%   ---temporary---
-%   (1) node, (2) time;
-%   (1) 1,    (2) time;
-%   (1) node, (2) 1;
-%   other...
-
-% ****TO BE SAVED****
-%   > O.C2          --> solutes concentrations
-%                       [nodes x times x montecarlo x solutes]
-%   NOTE: I have to substitute C2 with a variable specific for any solute
-%         we would like to implement in the model.
-O.C2                            = NaN( W.nz, P.Nj, M.nvp, 2 );
-%   > O.h22         --> flussi ai nodi intermedi
-%                       [nodes x times x montecarlo]
-O.h22                           = NaN( W.nz, P.Nj, M.nvp );
-%   > O.fluxsurf    --> flusso al contorno superiore
-%                       [1 x times x montecarlo]
-O.fluxsurf                      = NaN( 1, P.Nj, M.nvp );
-%   > O.fluxbot     --> flusso al contorno inferiore
-%                       [1 x times x montecarlo]
-O.fluxbot                       = NaN( 1, P.Nj, M.nvp );
-%   > O.runoff      --> runoff
-%                       [1 x times x montecarlo]
-O.runoff                        = NaN( 1, P.Nj, M.nvp );
-
-% ****TEMPORARY****
-% --nodes
-P.nodes.num                     = NaN(W.nlay+0,1);
-P.nodes.thickness               = NaN(W.nlay+0,1);
-P.nodes.cumsum                  = NaN(W.nlay+1,1);
-P.nodes.soillayer               = NaN(W.nz+0,1);
-P.nodes.z                       = NaN(W.nz+1,1);
-P.nodes.dz                      = NaN(W.nz+1,1);
-% --soil-grid
-P.sh.dap                        = NaN(W.nz,1);
-P.sh.tetas                      = NaN(W.nz,1);
-P.sh.tetar                      = NaN(W.nz,1);
-P.sh.alfrs                      = NaN(W.nz,1);
-P.sh.fi                         = NaN(W.nz,1);
-P.sh.alfvg                      = NaN(W.nz,1);
-P.sh.en                         = NaN(W.nz,1);
-P.sh.alfvg2                     = NaN(W.nz,1);
-P.sh.en2                        = NaN(W.nz,1);
-P.sh.ifr                        = NaN(W.nz,1);
-P.sh.k0                         = NaN(W.nz,1);
-P.sh.k0macr                     = NaN(W.nz,1);
-P.sh.bita                       = NaN(W.nz,1);
-P.sh.bita2                      = NaN(W.nz,1);
-P.sh.ifc                        = NaN(W.nz,1);
-P.sh.tetafc                     = NaN(W.nz,1);
-% --scalars:
-% ---counters:
-P.j                             = NaN;
-P.jstar                         = NaN;
-P.k                             = NaN;
-P.SS                            = NaN;
-P.niter                         = NaN;
-% ---others:
-P.dpt                           = NaN;
-P.op                            = NaN;
-P.teta_hsurf                    = NaN;
-P.Emax                          = NaN;
-P.teta_hbot                     = NaN;
-% --vectors:
-P.h2                            = NaN(W.nz,1);
-% ---time:
-P.time                          = NaN(1,P.Nj);
-P.km_max                        = NaN(1,P.Nj);
-P.fluxsurf_max                  = NaN(1,P.Nj);
-P.km                            = NaN(1,P.Nj);
-% ---others:
-P.Cinput                        = NaN(2,1);
-% --arrays: % check with Antonio --> I would DELETE the P.Nj dimension!!
-P.C1                            = NaN(W.nz,P.Nj,2);
-P.h1                            = NaN(W.nz,2,P.Nj); % **check with Antonio
-P.h1star                        = NaN(W.nz,2,P.Nj); % **check with Antonio
-P.ECstar                        = NaN(W.nz,P.Nj);
-P.teta                          = NaN(W.nz,P.Nj);
-P.kond                          = NaN(W.nz,P.Nj);
-P.cap                           = NaN(W.nz,P.Nj);
-P.sink                          = NaN(W.nz,P.Nj);
-P.kp                            = NaN(W.nz,P.Nj);
-P.flux                          = NaN(W.nz,P.Nj);
+run multilayer_init.m
 %% MONTECARLO --START--
 for mm=1:M.nvp
     progress_bar(mm,M.nvp,'multilayer prog')
+%% preallocation
+    run multilayer_preallocation
 %% define conditions (e.g. soil layers) in current montecarlo setting
     if W.MTCL==1
         % ripristinare uso di M.nnc
@@ -105,11 +17,14 @@ for mm=1:M.nvp
         end
     end
 %% Definition of soil grid geometry
-    P.nodes = multilayer_soilgrid(W.nz,W.zint,P.nodes);
-    
-    % You should call it as:
-    %     P = multilayer_soilgrid(W.nz,W.zint,P);
-    % when you'll set W.zint without the 0 !!
+    switch W.sg.type
+        case 1 % regular soil grid
+            P.nodes             = multilayer_soilgrid(P.nz,W.zint,P.nodes);
+        case 2 % sl --> sub-layers
+            P.nodes             = multilayer_soilgrid_sl(W.sg.sublayers,W.zint,P.nodes);
+    end
+    % plot: (should be optional)
+    multilayer_soilgrid_graph(P.nodes,W.zint);
 %% Create printing matrices -- put in initialization --
     
     W.dt                = W.dtin;
@@ -135,7 +50,7 @@ for mm=1:M.nvp
         P.Droot         = V.Droot(1);
     end
 %% retention & conductivity at soil grid nodes
-    for inode = 1:W.nz
+    for inode = 1:P.nz
         P.sh.dap(inode)        = W.dap(    P.nodes.soillayer(inode) );
         P.sh.tetas(inode)      = W.tetas(  P.nodes.soillayer(inode) );
         P.sh.tetar(inode)      = W.tetar(  P.nodes.soillayer(inode) );
@@ -194,11 +109,11 @@ for mm=1:M.nvp
                                 EC.data(:,P.ktec) ;
         end
 %% attribuzione param ritenz e conducib ai vari nodi nei diversi strati
-        for i=1:W.nz
+        for i=1:P.nz
             % curva ritenzione
             P.teta(i,P.j)       = fnteta( P.h1(i,P.j), P.sh, i );
 
-            if or(P.sh.ifc==1,P.sh.ifc==3)
+            if or(P.sh.ifc(i)==1,P.sh.ifc(i)==3)
                 P.kond(i,P.j)   = fncond( P.teta(i,P.j),P.sh, i );
             else
                 P.kond(i,P.j)   = fncond( P.h1(i,P.j),  P.sh, i );
@@ -350,40 +265,40 @@ for mm=1:M.nvp
         end
 %% flussi al fondo
         if W.ibbc==2
-            W.hbot                  = P.h1(W.nz,P.j)-(W.grad-1)*P.nodes.dz(W.nz+1);
+            W.hbot                  = P.h1(P.nz,P.j)-(W.grad-1)*P.nodes.dz(P.nz+1);
         end
 
         if W.ibbc==0
             O.fluxbot(1,P.j,mm)          = W.qbot;
-            W.hbot(P.j)             = (P.h1(W.nz,P.j)-P.h1(W.nz-1,P.j))*...
-                                       P.nodes.dz(W.nz+1)/P.nodes.dz(W.nz)+P.h1(W.nz,P.j);
+            W.hbot(P.j)             = (P.h1(P.nz,P.j)-P.h1(P.nz-1,P.j))*...
+                                       P.nodes.dz(P.nz+1)/P.nodes.dz(P.nz)+P.h1(P.nz,P.j);
         elseif or(W.ibbc==1,W.ibbc==2)
-            P.teta_hbot             = fnteta( W.hbot, P.sh, W.nz);
+            P.teta_hbot             = fnteta( W.hbot, P.sh, P.nz);
             if or(P.sh.ifc==1,P.sh.ifc==3)
-                P.kp(W.nz,P.j)      = ( P.kond(W.nz,P.j) + ...
-                                        fncond(P.teta_hbot,P.sh,W.nz) )/2;
+                P.kp(P.nz,P.j)      = ( P.kond(P.nz,P.j) + ...
+                                        fncond(P.teta_hbot,P.sh,P.nz) )/2;
             else
-                P.kp(W.nz,P.j)      = ( P.kond(W.nz,P.j) + ...
-                                        fncond(W.hbot,P.sh,W.nz) )/2;
+                P.kp(P.nz,P.j)      = ( P.kond(P.nz,P.j) + ...
+                                        fncond(W.hbot,P.sh,P.nz) )/2;
             end
-            O.fluxbot(1,P.j,mm)          = -P.kp(W.nz,P.j) * ...
-                                      ((P.h1(W.nz,P.j)-W.hbot)/P.nodes.dz(W.nz+1)+1);
+            O.fluxbot(1,P.j,mm)          = -P.kp(P.nz,P.j) * ...
+                                      ((P.h1(P.nz,P.j)-W.hbot)/P.nodes.dz(P.nz+1)+1);
         end
 %% flussi ai nodi intermedi
         % Check errors for dz(?):
         %   > at P.flux(1,.)        --> dz(1)           *error
-        %   > at P.flux(W.nz,.)     --> dz(end)         *error
-        %   > at P.flux(2:W.nz-1,.) --> dz(2:W.nz-1)    *good!
+        %   > at P.flux(P.nz,.)     --> dz(end)         *error
+        %   > at P.flux(2:P.nz-1,.) --> dz(2:P.nz-1)    *good!
         
         P.flux(1,P.j)               = -P.kond(1,P.j) * ...
                                    ((W.hsurf-P.h1(2,P.j))/(1.5*P.nodes.dz(1))+1);
-        P.flux(W.nz,P.j)            = -P.kond(W.nz,P.j) * ...
-                           ((P.h1(W.nz-1,P.j)-W.hbot)/(P.nodes.dz(W.nz+1)+P.nodes.dz(W.nz))+1);
+        P.flux(P.nz,P.j)            = -P.kond(P.nz,P.j) * ...
+                           ((P.h1(P.nz-1,P.j)-W.hbot)/(P.nodes.dz(P.nz+1)+P.nodes.dz(P.nz))+1);
         
-        P.flux(2:W.nz-1,P.j)        = -P.kond(2:W.nz-1,P.j)     .*( ...
-                                      ( P.h1((2:W.nz-1)-1,P.j)  -  ...
-                                      P.h1((2:W.nz-1)+1,P.j) )  ./ ...
-                                      (2*P.nodes.dz(2:W.nz-1))+1      );
+        P.flux(2:P.nz-1,P.j)        = -P.kond(2:P.nz-1,P.j)     .*( ...
+                                      ( P.h1((2:P.nz-1)-1,P.j)  -  ...
+                                      P.h1((2:P.nz-1)+1,P.j) )  ./ ...
+                                      (2*P.nodes.dz(2:P.nz-1))+1      );
 %% calcolo flussi all'interfaccia
         P.flux(P.nodes.cumsum(2:W.nlay),P.j) = 2/3 * P.flux(P.nodes.cumsum(2:W.nlay)-1,P.j) +...
                                                1/3 * P.flux(P.nodes.cumsum(2:W.nlay)+2,P.j);
@@ -395,7 +310,7 @@ for mm=1:M.nvp
 %                                       fluxsurfcum(P.j-1);
 %         end
 %% flussi cumulati ai nodi intermedi ==> not used
-%         for i=1:W.nz
+%         for i=1:P.nz
 %             if P.j==1
 %                 fluxcum(i,1)        = P.flux(i,1)*W.dt;
 %             else
@@ -406,7 +321,7 @@ for mm=1:M.nvp
 %% soluzione del sistema tridiagonale (see WARNING)
        P.h2                        = fnsyst( P, W );
 %% calcolo capacita' metodo implicito (vedi Karvonen)
-        for i=1:W.nz
+        for i=1:P.nz
             if abs(P.h2(i)-P.h1(i,P.j))>W.tolle1
                 P.cap(i,P.j)       = ( fnteta( P.h2(i),P.sh,i) -  ...
                                         fnteta(P.h1(i,P.j),P.sh,i) ...
@@ -420,7 +335,7 @@ for mm=1:M.nvp
         P.SS                       = 0;
         P.niter                    = 0; % Nj per convergenza capacit�.
         while and(max(abs(O.h22(:,P.j,mm)-P.h2))>W.tolle1,P.SS==0)
-            for i=1:W.nz            
+            for i=1:P.nz            
                 if abs(O.h22(i,P.j,mm)-P.h2(i))>W.tolle1        
                     P.cap(i,P.j)    = ( fnteta(O.h22(i,P.j,mm),P.sh,i) -   ...
                                         fnteta(P.h1(i,P.j),P.sh,i)     ...
