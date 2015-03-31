@@ -1,22 +1,19 @@
 function multilayer_soilgrid_graph(Pnodes, Wzint)
+% multilayer_soilgrid_graph(Pnodes, Wzint)
+
+%% pars
+offset = [-10,+10,-20,+40];
+
+%% main
+scrsz = get(0,'ScreenSize');
+fig_size = [scrsz(1)+20, scrsz(2), scrsz(3)*0.30, scrsz(4)*0.95];
 
 Wzint = [0,Wzint];
-
-figure(7), whitebg('k')
+figure(7)
 clf
-
-
-% here:
-scrsz = get(0,'ScreenSize');
-
-
-
-
-
-
-
+whitebg('k')
+set(gcf, 'OuterPosition',fig_size)
 hold on
-offset = [-10,+10,-20,+40];
 
 % soil layers limits:
 for ii = 1:length(Wzint)
@@ -40,7 +37,7 @@ for ii=1:length(Pnodes.z)-1
 end
 text(X(2)+1,-Pnodes.z(end),'.','Color','y','FontSize',6)
 
-DIF = diff(Pnodes.soillayer);
+DIF = diff(Pnodes.soillayer(1:end-1));
 DIF(find(DIF)-1) = 1;
 DIF = [1;DIF];
 DIF(end:end+1) = 1;
@@ -55,3 +52,6 @@ text(X(2)+3.5,offset(4)/2,{'Z';'[cm]'},'HorizontalAlignment','left','VerticalAli
 axis([ X(1), X(2), -Wzint(end), Wzint(1) ]+offset)
 hold off
 axis off
+
+%% end
+return
