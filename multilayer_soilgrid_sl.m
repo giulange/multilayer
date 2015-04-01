@@ -49,12 +49,12 @@ iHs                         = Wsl(:,3); % 'hSubLay'
 iHn                         = Wsl(:,4); % 'hNode'
 iNn                         = Wsl(:,5); % 'nNodes'
 %% initialization
-Pnodes.num                  = NaN(  iL(end)+0,1 );
-Pnodes.thickness            = NaN(  iL(end)+0,1 );
-Pnodes.cumsum               = NaN(  iL(end)+1,1 );
-Pnodes.soillayer            = NaN( sum(iNn)+1,1 );
-Pnodes.z                    = NaN( sum(iNn)+1,1 );
-Pnodes.dz                   = NaN( sum(iNn)+1,1 );
+% Pnodes.num                  = NaN(  iL(end)+0,1 );
+% Pnodes.thickness            = NaN(  iL(end)+0,1 );
+% Pnodes.cumsum               = NaN(  iL(end)+1,1 );
+% Pnodes.soillayer            = NaN( sum(iNn)+1,1 );
+% Pnodes.z                    = NaN( sum(iNn)+1,1 );
+% Pnodes.dz                   = NaN( sum(iNn)+1,1 );
 %% check point
 % The sum of sublayers thickness must equal the lower boundary depth of the
 % lower soil horizon:

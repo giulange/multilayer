@@ -13,6 +13,8 @@
 %   (1) node, (2) 1;
 %   other...
 
+warning('You have to decide whether to allocate for P.nz or for P.nz+1 !!')
+
 % ****TO BE SAVED****
 %   > O.C2          --> solutes concentrations
 %                       [nodes x times x montecarlo x solutes]

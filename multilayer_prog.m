@@ -1,11 +1,12 @@
-%% initialization
+%% Initialization
 run multilayer_init.m
 %% MONTECARLO --START--
 for mm=1:M.nvp
     progress_bar(mm,M.nvp,'multilayer prog')
-%% preallocation
+%     hwb = waitbar(0,['Please wait... [MCS=',num2str(mm),']']);
+%% Preallocation
     run multilayer_preallocation
-%% define conditions (e.g. soil layers) in current montecarlo setting
+%% Define conditions for current montecarlo setting
     if W.MTCL==1
         % ripristinare uso di M.nnc
         
@@ -25,12 +26,15 @@ for mm=1:M.nvp
     end
     % plot: (should be optional)
     multilayer_soilgrid_graph(P.nodes,W.zint);
-%% Create printing matrices -- put in initialization --
+%% Create printing matrices -- check with Antonio
     
+    % useless?
     W.dt                = W.dtin;
     
-    % inizializzazione contatori e tempo di simulazione
-    P.j                 = 1; % mettiamo i contatori in struct array specifica come "C"
+    % *** -- put in initialization? -- ***
+    % Inizializzazione contatori e tempo di simulazione
+    % (mettiamo i contatori in struct array specifica come "C"!)
+    P.j                 = 1;
     P.time(1)           = W.dt;
     P.kk                = 1;
     P.pp                = 1;
@@ -41,7 +45,9 @@ for mm=1:M.nvp
 %     P.TT                = 0;
     P.rnf               = 0;
     P.ktec              = 1;  
-%% Calcolo ET potenziale con E + T
+%% Calcolo ET potenziale con E + T -- non dovrebbe stare dentro while(P.j)?
+
+% ETp0, Ep and Tp should vary with time!?
     if and(W.itopvar==1,W.iveg==1)
         P.ETp0          = V.Kc(1)*V.ETr(1);
         % legge di Beer
@@ -49,7 +55,8 @@ for mm=1:M.nvp
         P.Tp            = P.ETp0-P.Ep;
         P.Droot         = V.Droot(1);
     end
-%% retention & conductivity at soil grid nodes
+%% Hydraulic mapping from soil layers to soil grid nodes
+    % Retention & conductivity at soil grid nodes from info at soil layers:
     for inode = 1:P.nz
         P.sh.dap(inode)        = W.dap(    P.nodes.soillayer(inode) );
         P.sh.tetas(inode)      = W.tetas(  P.nodes.soillayer(inode) );
@@ -71,9 +78,10 @@ for mm=1:M.nvp
         % coefficiente di mineralizzazione.
         P.sh.tetafc(inode)     = fnteta( W.hfc, P.sh, inode );
     end
-%% inizio simulazione
+%% TIME simulation loop
     while P.time(P.j)<W.tmax
-%% adattamento T sim al T stampa
+%         waitbar( P.j / P.Nj )
+%% adattamento T sim al T stampa -- check at the end!
         if P.time(P.j) >= W.tp(P.pp)
             P.TT = 1;
             P.time(P.j)     = W.tp(P.pp);
@@ -83,18 +91,18 @@ for mm=1:M.nvp
             P.time(P.j)     = W.tp(P.pp);
             W.dt            = W.tp(P.pp);
         end    
-%% lettura h iniziali o aggiornamento h
+%% lettura h iniziali o aggiornamento h -- check at the end!
         P.jstar                 = P.j;
         
         % lettura h iniziali e aggiornamento h
         if P.j==1
-            P.h1(:,P.j)         = W.hin;
+            P.h1                = W.hin;
         elseif P.j>P.jstar
-            P.h1(:,P.j)         = P.h2; % --> not yet initialized!!
-        elseif P.j==P.jstar
-            P.h1(:,P.j)         = P.h1star(:,P.j);
+            P.h1                = P.h2; % --> not yet initialized!!
+        elseif P.j==P.jstar % come potrebbe essere diverso, se sopra impongo P.jstar=P.j ??
+            P.h1                = P.h1star(:,P.j);
         end
-        P.h1star(:,P.j)         = P.h1(:,P.j);
+        P.h1star(:,:,P.j)       = P.h1;
 %% calcolo valori potenziale osmotico per il tempo di simulazione (ERROR)
         if W.iosm==1 && V.ifs>3
             P.IEC               = 0;        % boolean: store if ktec incremented
@@ -103,38 +111,38 @@ for mm=1:M.nvp
                 P.ktec          = P.ktec+1;
                 P.IEC           = 1;
             end
-            P.ECstar(:,P.j)     = ( P.time(P.j)-EC.t(P.ktec) )      / ...
-                              ( EC.t(P.ktec+1)-EC.t(P.ktec) )       * ...
+            P.ECstar            = ( P.time(P.j)-EC.t(P.ktec) )          / ...
+                              ( EC.t(P.ktec+1)-EC.t(P.ktec) )           * ...
                               ( EC.data(:,P.ktec+1)-EC.data(:,P.ktec) ) + ...
                                 EC.data(:,P.ktec) ;
         end
-%% attribuzione param ritenz e conducib ai vari nodi nei diversi strati
+%% calc. param. ritenz. e conducib. ai vari nodi nei diversi strati
         for i=1:P.nz
             % curva ritenzione
-            P.teta(i,P.j)       = fnteta( P.h1(i,P.j), P.sh, i );
+            P.teta(i)           = fnteta( P.h1(i), P.sh, i );
 
             if or(P.sh.ifc(i)==1,P.sh.ifc(i)==3)
-                P.kond(i,P.j)   = fncond( P.teta(i,P.j),P.sh, i );
+                P.kond(i)       = fncond( P.teta(i),P.sh, i );
             else
-                P.kond(i,P.j)   = fncond( P.h1(i,P.j),  P.sh, i );
+                P.kond(i)       = fncond( P.h1(i),  P.sh, i );
             end
-            P.cap(i,P.j)        = fncap(  P.h1(i,P.j),  P.sh, i );
+            P.cap(i)        = fncap(  P.h1(i),  P.sh, i );
 
             if (and(W.iveg==1,W.itopvar==1))
                 if P.Droot>0
                     P.dpt       = P.nodes.z(i);
                     if W.iosm==1 && V.ifs>3
-                        P.op    = -P.ECstar(i,P.j)*360;
+                        P.op    = -P.ECstar(i)*360;
                     else
                         P.op    = 0;
                     end
                     if P.nodes.z(i)<P.Droot                    
-                        P.sink(i,P.j)   = fnsink( P.h1(i,P.j), P, W, V );
+                        P.sink(i)       = fnsink( P.h1(i), P, W, V );
                     else
-                        P.sink(i,P.j)   = 0;
+                        P.sink(i)       = 0;
                     end
                 else
-                    P.sink(i,P.j)       = 0;
+                    P.sink(i)           = 0;
                 end
             end        
         end
@@ -194,8 +202,8 @@ for mm=1:M.nvp
             P.TT                    = 0;
         end
 %% flussi in superficie
-        P.km_max(1,P.j)             = (P.kond(1,P.j)+P.sh.k0(1))/2;
-        P.fluxsurf_max(P.j)         = -P.km_max(1,P.j)*((W.hsurfmax-P.h1(1,P.j))/(P.nodes.dz(1)/2)+1);% Darcy
+        P.km_max(1,P.j)             = (P.kond(1)+P.sh.k0(1))/2;
+        P.fluxsurf_max(P.j)         = -P.km_max(1,P.j)*((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);% Darcy
 
         if W.itbc==0
             if and(and(and(W.itopvar==1,W.qsurf==0),W.iveg==1),W.itbc==0)
@@ -203,17 +211,17 @@ for mm=1:M.nvp
                 P.teta_hsurf        = fnteta( W.hsurf, P.sh, 1 );
 
                 if or(P.sh.ifc==1,P.sh.ifc==3)
-                    P.km(1,P.j)     = (P.kond(1,P.j) + fncond(P.teta_hsurf,P.sh,1))/2;
+                    P.km(1,P.j)     = (P.kond(1) + fncond(P.teta_hsurf,P.sh,1))/2;
                 else
-                    P.km(1,P.j)     = (P.kond(1,P.j) + fncond(W.hsurf,P.sh,1))/2;
+                    P.km(1,P.j)     = (P.kond(1) + fncond(W.hsurf,P.sh,1))/2;
                 end
 
                 P.Emax              = -P.km(1,P.j) * ...
-                                     ((W.hsurf-P.h1(1,P.j))/(P.nodes.dz(1)/2)+1);
+                                     ((W.hsurf-P.h1(1))/(P.nodes.dz(1)/2)+1);
 
                 if P.Ep<P.Emax
                     W.qsurf         = P.Ep;
-                    W.hsurf         = (3*P.h1(1,P.j)-P.h1(2,P.j))/2;
+                    W.hsurf         = (3*P.h1(1)-P.h1(2))/2;
                     O.fluxsurf(1,P.j,mm) = W.qsurf;
                 else
                     W.qsurf         = P.Emax;
@@ -221,11 +229,11 @@ for mm=1:M.nvp
                 end
 
             elseif and(W.itbc==0,W.qsurf<0)        
-                W.hsurf             = (3*P.h1(1,P.j)-P.h1(2,P.j))/2;
-                O.fluxsurf(1,P.j,mm)     = W.qsurf;
+                W.hsurf             = (3*P.h1(1)-P.h1(2))/2;
+                O.fluxsurf(1,P.j,mm)= W.qsurf;
             elseif and(and(W.itbc==0,W.qsurf==0),W.iveg==0)
-                W.hsurf             = (3*P.h1(1,P.j)-P.h1(2,P.j))/2;
-                O.fluxsurf(1,P.j,mm)     = W.qsurf;
+                W.hsurf             = (3*P.h1(1)-P.h1(2))/2;
+                O.fluxsurf(1,P.j,mm)= W.qsurf;
             end
 
             % Dall'estrapolazione lineare dei valori di h(1,P.j) e di
@@ -246,43 +254,43 @@ for mm=1:M.nvp
         if W.itbc==1
             if P.rnf==1
                 W.hsurf             = W.hsurfmax;
-                P.km_max(1,P.j)     = (P.kond(1,P.j)+P.sh.k0(1))/2;
+                P.km_max(1,P.j)     = (P.kond(1)+P.sh.k0(1))/2;
                 P.fluxsurf_max(P.j) = -P.km_max(1,P.j) * ...
-                                  ((W.hsurfmax-P.h1(1,P.j))/(P.nodes.dz(1)/2)+1);
+                                  ((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);
                 O.fluxsurf(1,P.j,mm)= P.fluxsurf_max(P.j);
             elseif P.rnf==0
                 P.teta_hsurf        = fnteta( W.hsurf, P.sh, 1 );
                 if or(P.sh.ifc==1,P.sh.ifc==3)
-                    P.km(1,P.j)     = ( P.kond(1,P.j) + ...
+                    P.km(1,P.j)     = ( P.kond(1) + ...
                                         fncond(P.teta_hsurf,P.sh,1) )/2;
                 else
-                    P.km(1,P.j)     = ( P.kond(1,P.j) + ...
+                    P.km(1,P.j)     = ( P.kond(1) + ...
                                         fncond(W.hsurf,P.sh,1) )/2;
                 end
-                O.fluxsurf(1,P.j,mm)     = -P.km(1,P.j) * ...
-                                     ((W.hsurf-P.h1(1,P.j))/(P.nodes.dz(1)/2)+1);
+                O.fluxsurf(1,P.j,mm)= -P.km(1,P.j) * ...
+                                     ((W.hsurf-P.h1(1))/(P.nodes.dz(1)/2)+1);
             end
         end
 %% flussi al fondo
         if W.ibbc==2
-            W.hbot                  = P.h1(P.nz,P.j)-(W.grad-1)*P.nodes.dz(P.nz+1);
+            W.hbot                  = P.h1(P.nz)-(W.grad-1)*P.nodes.dz(P.nz+1);
         end
 
         if W.ibbc==0
             O.fluxbot(1,P.j,mm)          = W.qbot;
-            W.hbot(P.j)             = (P.h1(P.nz,P.j)-P.h1(P.nz-1,P.j))*...
-                                       P.nodes.dz(P.nz+1)/P.nodes.dz(P.nz)+P.h1(P.nz,P.j);
+            W.hbot(P.j)             = (P.h1(P.nz)-P.h1(P.nz-1))*...
+                                       P.nodes.dz(P.nz+1)/P.nodes.dz(P.nz)+P.h1(P.nz);
         elseif or(W.ibbc==1,W.ibbc==2)
             P.teta_hbot             = fnteta( W.hbot, P.sh, P.nz);
             if or(P.sh.ifc==1,P.sh.ifc==3)
-                P.kp(P.nz,P.j)      = ( P.kond(P.nz,P.j) + ...
+                P.kp(P.nz)          = ( P.kond(P.nz) + ...
                                         fncond(P.teta_hbot,P.sh,P.nz) )/2;
             else
-                P.kp(P.nz,P.j)      = ( P.kond(P.nz,P.j) + ...
+                P.kp(P.nz)          = ( P.kond(P.nz) + ...
                                         fncond(W.hbot,P.sh,P.nz) )/2;
             end
-            O.fluxbot(1,P.j,mm)          = -P.kp(P.nz,P.j) * ...
-                                      ((P.h1(P.nz,P.j)-W.hbot)/P.nodes.dz(P.nz+1)+1);
+            O.fluxbot(1,P.j,mm)     = -P.kp(P.nz,P.j) * ...
+                                      ((P.h1(P.nz)-W.hbot)/P.nodes.dz(P.nz+1)+1);
         end
 %% flussi ai nodi intermedi
         % Check errors for dz(?):
@@ -290,18 +298,20 @@ for mm=1:M.nvp
         %   > at P.flux(P.nz,.)     --> dz(end)         *error
         %   > at P.flux(2:P.nz-1,.) --> dz(2:P.nz-1)    *good!
         
-        P.flux(1,P.j)               = -P.kond(1,P.j) * ...
-                                   ((W.hsurf-P.h1(2,P.j))/(1.5*P.nodes.dz(1))+1);
-        P.flux(P.nz,P.j)            = -P.kond(P.nz,P.j) * ...
-                           ((P.h1(P.nz-1,P.j)-W.hbot)/(P.nodes.dz(P.nz+1)+P.nodes.dz(P.nz))+1);
+        P.flux(1)               = -P.kond(1) * ((W.hsurf-P.h1(2)) ...
+                                      /(1.5*P.nodes.dz(1))+1);
+        P.flux(P.nz)            = -P.kond(P.nz) * ((P.h1(P.nz-1)-W.hbot)...
+                                      /(P.nodes.dz(P.nz+1)+P.nodes.dz(P.nz))+1);
         
-        P.flux(2:P.nz-1,P.j)        = -P.kond(2:P.nz-1,P.j)     .*( ...
-                                      ( P.h1((2:P.nz-1)-1,P.j)  -  ...
-                                      P.h1((2:P.nz-1)+1,P.j) )  ./ ...
+        P.flux(2:P.nz-1)        = -P.kond(2:P.nz-1)     .*( ...
+                                      ( P.h1((2:P.nz-1)-1)  -  ...
+                                      P.h1((2:P.nz-1)+1) )  ./ ...
                                       (2*P.nodes.dz(2:P.nz-1))+1      );
-%% calcolo flussi all'interfaccia
-        P.flux(P.nodes.cumsum(2:W.nlay),P.j) = 2/3 * P.flux(P.nodes.cumsum(2:W.nlay)-1,P.j) +...
-                                               1/3 * P.flux(P.nodes.cumsum(2:W.nlay)+2,P.j);
+%% calcolo flussi all'interfaccia -- error!! check with Antonio
+        % P.k = 2:W.nlay;
+        % P.flux(P.nodes.cumsum(P.k),P.j) = ...
+        P.flux(P.nodes.cumsum(2:W.nlay)) = 2/3 * P.flux(P.nodes.cumsum(2:W.nlay)-1) +...
+                                           1/3 * P.flux(P.nodes.cumsum(2:W.nlay)+2);
 %% flussi cumulati in superficie ==> not used
 %         if P.j==1
 %             fluxsurfcum(P.j)        = O.fluxsurf(1,P.j,mm)*W.dt;
@@ -309,7 +319,7 @@ for mm=1:M.nvp
 %             fluxsurfcum(P.j)        = O.fluxsurf(1,P.j,mm)*W.dt + ...
 %                                       fluxsurfcum(P.j-1);
 %         end
-%% flussi cumulati ai nodi intermedi ==> not used
+%% flussi cumulati ai nodi intermedi ==> not used -- error on P.j
 %         for i=1:P.nz
 %             if P.j==1
 %                 fluxcum(i,1)        = P.flux(i,1)*W.dt;
@@ -322,10 +332,10 @@ for mm=1:M.nvp
        P.h2                        = fnsyst( P, W );
 %% calcolo capacita' metodo implicito (vedi Karvonen)
         for i=1:P.nz
-            if abs(P.h2(i)-P.h1(i,P.j))>W.tolle1
-                P.cap(i,P.j)       = ( fnteta( P.h2(i),P.sh,i) -  ...
-                                        fnteta(P.h1(i,P.j),P.sh,i) ...
-                                      ) / ( P.h2(i)-P.h1(i,P.j) ) ;
+            if abs(P.h2(i)-P.h1(i))>W.tolle1
+                P.cap(i)       = ( fnteta( P.h2(i),P.sh,i) -  ...
+                                        fnteta(P.h1(i),P.sh,i) ...
+                                      ) / ( P.h2(i)-P.h1(i) ) ;
             end
         end
         % fnsyst con il nuovo P.cap:
@@ -337,9 +347,9 @@ for mm=1:M.nvp
         while and(max(abs(O.h22(:,P.j,mm)-P.h2))>W.tolle1,P.SS==0)
             for i=1:P.nz            
                 if abs(O.h22(i,P.j,mm)-P.h2(i))>W.tolle1        
-                    P.cap(i,P.j)    = ( fnteta(O.h22(i,P.j,mm),P.sh,i) -   ...
-                                        fnteta(P.h1(i,P.j),P.sh,i)     ...
-                                      ) / ( O.h22(i,P.j,mm)-P.h1(i,P.j) )  ;
+                    P.cap(i)    = ( fnteta(O.h22(i,P.j,mm),P.sh,i) -   ...
+                                        fnteta(P.h1(i),P.sh,i)     ...
+                                      ) / ( O.h22(i,P.j,mm)-P.h1(i) )  ;
                 end
             end
             P.h2                    = O.h22(:,P.j,mm);
@@ -363,7 +373,7 @@ for mm=1:M.nvp
                     % annullamento dell'iterazione per riduzione del
                     % W.dt.
                     % Serve solo nel caso di P.LL=1, quando il ripristino
-                    % non pu� avvenire con le righe uguali poste alla fine
+                    % non può avvenire con le righe uguali poste alla fine
                     % del blocco per la simulazione del trasporto di
                     % soluti.
                     if and(W.itopvar==1,W.itbc==0)
@@ -401,14 +411,14 @@ for mm=1:M.nvp
         if P.LL==0
 %% trasporto soluti CDE
             if W.isol==2
-                P = solute_transport_ADE_N( P, W, S, B, O, mm );
+                [O,P] = solute_transport_ADE_N( P, W, S, B, O, mm );
             end
 %% restore qsurf & hsurf -- check with Antonio!!
 % Serve a ripristinare il valore di W.qsurf che potrebbe essere stato
 % cambiato nella routine per l'evaporazione W.qsurf=P.Ep oppure
 % W.qsurf=P.Emax.
 % Lo stesso vale per W.hsurf che potrebbe essere stato cambiato nella
-% routine per W.itbc=1 W.hsurf=(3*P.h1(1,P.j)-P.h1(2,P.j))/2 oppure
+% routine per W.itbc=1 W.hsurf=(3*P.h1(1)-P.h1(2))/2 oppure
 % W.hsurf=W.hsurfmax.
 % Se questi valori non venissero ripristinati, nel giro successivo del
 % while i controlli sui flussi in superficie (per W.itbc=0) o sui
@@ -461,6 +471,7 @@ for mm=1:M.nvp
     end% P.time(P.j)<W.tmax
 %% MONTECARLO --END--
 end% mm=1:M.nvp
+% close(hwb) % close waitbar
 %% SAVE -- incomplete
 if W.MTCL == 0
     multilayer_save( O )

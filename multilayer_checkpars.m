@@ -69,10 +69,6 @@ if or(W.iveg==1,(and(W.isol==2,W.iCtopvar==1)))
        error('check (W.itopvar, W.iCtopvar, W.iveg)=1')
     end
 end
-
-if (W.MTCL==0 && M.nvp>1) || (W.MTCL==1 && M.nvp<2)
-    error( err_msg_wrong_par_set( 'M.nvp' ) );
-end
 %% montecarlo
 
 if W.MTCL==0
@@ -141,6 +137,9 @@ elseif W.MTCL==1
     end
 else
     error( err_msg_wrong_par_set( 'W.MTCL' ) );
+end
+if (W.MTCL==0 && M.nvp>1) || (W.MTCL==1 && M.nvp<2)
+    error( err_msg_wrong_par_set( 'M.nvp' ) );
 end
 %% cutted code:
 
