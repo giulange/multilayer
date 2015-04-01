@@ -100,9 +100,9 @@ for mm=1:M.nvp
         elseif P.j>P.jstar
             P.h1                = P.h2; % --> not yet initialized!!
         elseif P.j==P.jstar % come potrebbe essere diverso, se sopra impongo P.jstar=P.j ??
-            P.h1                = P.h1star(:,P.j);
+            P.h1                = P.h1star;
         end
-        P.h1star(:,:,P.j)       = P.h1;
+        P.h1star                = P.h1;
 %% calcolo valori potenziale osmotico per il tempo di simulazione (ERROR)
         if W.iosm==1 && V.ifs>3
             P.IEC               = 0;        % boolean: store if ktec incremented
@@ -289,7 +289,7 @@ for mm=1:M.nvp
                 P.kp(P.nz)          = ( P.kond(P.nz) + ...
                                         fncond(W.hbot,P.sh,P.nz) )/2;
             end
-            O.fluxbot(1,P.j,mm)     = -P.kp(P.nz,P.j) * ...
+            O.fluxbot(1,P.j,mm)     = -P.kp(P.nz) * ...
                                       ((P.h1(P.nz)-W.hbot)/P.nodes.dz(P.nz+1)+1);
         end
 %% flussi ai nodi intermedi
@@ -411,7 +411,22 @@ for mm=1:M.nvp
         if P.LL==0
 %% trasporto soluti CDE
             if W.isol==2
-                [O,P] = solute_transport_ADE_N( P, W, S, B, O, mm );
+            % update intial concentrations
+                if P.j==1% first iteration
+                    % [W.dz,1:2,P.Nj]
+                    C1(:,1)             = S.CDE.Cin.NH;
+                    C1(:,2)             = S.CDE.Cin.NO;
+                elseif P.j>P.jstar% se avanza...
+                    % OLD % P.C1(:,:,P.j) = P.C2(:,:,P.j-1);
+                    C1                  = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
+                elseif P.j==P.jstar% se non puo' avanzare...
+                    % OLD % P.C1(:,:,P.j) = P.C1star(:,:,P.j);
+                    C1                  = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
+                end
+                %[O,P] = solute_transport_ADE_N( P, W, S, B, O, mm );
+                [O.C2(:,P.j,mm,:),P]    = solute_transport_ADE_N(P,W,S.CDE,...
+                                        B.Ctop,C1,O.fluxsurf(1,P.j,mm),...
+                                        O.fluxbot(1,P.j,mm) );
             end
 %% restore qsurf & hsurf -- check with Antonio!!
 % Serve a ripristinare il valore di W.qsurf che potrebbe essere stato
@@ -474,7 +489,7 @@ end% mm=1:M.nvp
 % close(hwb) % close waitbar
 %% SAVE -- incomplete
 if W.MTCL == 0
-    multilayer_save( O )
+    multilayer_save( O, proj, P.jstar )
 elseif W.MTCL == 1
-    multilayer_save_mcs.m
+    multilayer_save_mcs( O, proj )
 end

@@ -10,25 +10,17 @@ function ics_fin = mln_bisection(f_bis_sol, a_bs, b_bs, espon )
 %   b_bs:           ??
 %   espon:          ??
 
-% f_bis_sol       = @(yps) ...
-%                     teta*yps        - ...
-%                     teta*C2phys     + ...
-%                     dap*Kf1*yps^Kf2 - ...
-%                     dap*S1          - ...
-%                     SsSk*Wdt;
-% a_bs            = -100;
-% b_bs            = 100;
-% espon           = -30;
+%% main
 eps_bs          = 10^espon;
-fa              = feval(f_bis_sol,a_bs);
-fb              = feval(f_bis_sol,b_bs);
+fa              = feval(f_bis_sol,a_bs);    % f_bis_sol(a_bs)
+fb              = feval(f_bis_sol,b_bs);    % f_bis_sol(b_bs)
 if fa*fb>0
     error('Intervallo iniziale non accettabile')
 end
 Nit_sol         = (log(b_bs-a_bs)-log(eps_bs))/log(2);
 for u=3:Nit_sol+2
     ics         = (a_bs+b_bs)/2;
-    fics        = feval(f_bis_sol,ics); % f_bis_sol(ics)
+    fics        = feval(f_bis_sol,ics);
     if fa*fics<=0
         b_bs    = ics;
     else
@@ -37,5 +29,5 @@ for u=3:Nit_sol+2
     end
 end
 ics_fin         = (a_bs+b_bs)/2;
-
+%% end
 return

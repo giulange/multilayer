@@ -1,4 +1,4 @@
-function multilayer_save_mcs( O )
+function multilayer_save_mcs( O, proj )
 % NOTES:
 % 
 % Decide with Antonio: do we print time in rows and nodes in columns? At

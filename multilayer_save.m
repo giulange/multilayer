@@ -1,4 +1,4 @@
-function multilayer_save( O )
+function multilayer_save( O, proj, Pj )
 % NOTES:
 % 
 % Decide with Antonio: do we print time in rows and nodes in columns? At
@@ -36,15 +36,13 @@ function multilayer_save( O )
 % CREATE filename
 FILE = [proj.opath, O.files.h22];
 % OVERWRITE existing ??
-for ii = 1:length(FILE)
-    if exist( FILE, 'file' ) == 2
-        warning( 'The %s file already exists! It will be re-written!!',FILE )
-    end
+if exist( FILE, 'file' ) == 2
+    warning( 'The %s file already exists! It will be re-written!!',FILE )
 end
 % OPEN file
 fid = fopen( FILE, 'w' );
 % WRITE file
-for r = 1:size(O.h22,2)      % r is the row of file (not of array)
+for r = 1:Pj%size(O.h22,2)      % r is the row of file (not of array)
     for c = 1:size(O.h22,1)  % c is the col of file (not of array)
         fprintf(fid,' %7.3f',O.h22(c,r));
     end
@@ -59,17 +57,16 @@ fclose( fid );
 % CREATE filename
 FILE = [proj.opath,'NH4_',O.files.C2];
 % OVERWRITE existing ??
-for ii = 1:length(FILE)
-    if exist( FILE, 'file' ) == 2
-        warning( 'The %s file already exists! It will be re-written!!',FILE )
-    end
+if exist( FILE, 'file' ) == 2
+    warning( 'The %s file already exists! It will be re-written!!',FILE )
 end
 % OPEN file
 fid = fopen( FILE, 'w' );
 % WRITE file
-for r = 1:size(O.C2,2)      % r is the row of file (not of array)
+% TMP = squeeze( O.C2(:,:,1,1) );
+for r = 1:Pj%size(O.C2,2)      % r is the row of file (not of array)
     for c = 1:size(O.C2,1)  % c is the col of file (not of array)
-        fprintf(fid,' %7.3f',O.C2(c,r,1));
+        fprintf(fid,' %7.3e',O.C2(c,r,1,1));
     end
     fprintf(fid,'\n');
 end
@@ -79,17 +76,15 @@ fclose( fid );
 % CREATE filename
 FILE = [proj.opath, 'NO3_', O.files.C2];
 % OVERWRITE existing ??
-for ii = 1:length(FILE)
-    if exist( FILE, 'file' ) == 2
-        warning( 'The %s file already exists! It will be re-written!!',FILE )
-    end
+if exist( FILE, 'file' ) == 2
+    warning( 'The %s file already exists! It will be re-written!!',FILE )
 end
 % OPEN file
 fid = fopen( FILE, 'w' );
 % WRITE file
-for r = 1:size(O.C2,2)      % r is the row of file (not of array)
+for r = 1:Pj%size(O.C2,2)      % r is the row of file (not of array)
     for c = 1:size(O.C2,1)  % c is the col of file (not of array)
-        fprintf(fid,' %7.3f',O.C2(c,r,2));
+        fprintf(fid,' %7.3e',O.C2(c,r,1,2));
     end
     fprintf(fid,'\n');
 end
@@ -104,15 +99,13 @@ flux    = [ O.fluxsurf; O.fluxbot; O.runoff; ];
 % CREATE filename
 FILE = [proj.opath,O.files.flux];
 % OVERWRITE existing ??
-for ii = 1:length(FILE)
-    if exist( FILE, 'file' ) == 2
-        warning( 'The %s file already exists! It will be re-written!!',FILE )
-    end
+if exist( FILE, 'file' ) == 2
+    warning( 'The %s file already exists! It will be re-written!!',FILE )
 end
 % OPEN file
 fid = fopen( FILE, 'w' );
 % WRITE file
-for r = 1:size(flux,2)      % r is the row of file (not of array)
+for r = 1:Pj%size(flux,2)      % r is the row of file (not of array)
     for c = 1:size(flux,1)  % c is the col of file (not of array)
         fprintf(fid,' %7.3f',flux(c,r));
     end

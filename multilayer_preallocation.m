@@ -24,7 +24,7 @@ P.sh.bita                       = NaN(P.nz,1);
 P.sh.bita2                      = NaN(P.nz,1);
 P.sh.ifc                        = NaN(P.nz,1);
 P.sh.tetafc                     = NaN(P.nz,1);
-% --hydr
+% --hydr (put in .sh.)
 P.teta                          = NaN(P.nz,1);
 P.kond                          = NaN(P.nz,1);
 P.cap                           = NaN(P.nz,1);

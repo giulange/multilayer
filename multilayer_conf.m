@@ -54,7 +54,7 @@ W.zint              = [25, 60, 300];
 %                                       defined
 %                           > 3     --> any other kind of geometry we would
 %                                       like to implement!
-W.sg.type           = 1;
+W.sg.type           = 2;
 % regular:              It creates a soil grid with regular node spacing,
 %                       at least within the same soil layer.
 %                       Node spacing is quite similar between soil layers,
