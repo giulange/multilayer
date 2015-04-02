@@ -17,7 +17,7 @@ for mm=1:M.nvp
             eval( [M.list{ nvars } ' = M.data(M.combinations(',num2str(mm),',:),',num2str(nvars),')'';'] )
         end
     end
-%% Definition of soil grid geometry
+%% SOIL GRID GEOMETRY
     switch W.sg.type
         case 1 % regular soil grid
             P.nodes             = multilayer_soilgrid(P.nz,W.zint,P.nodes);

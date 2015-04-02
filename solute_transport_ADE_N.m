@@ -21,7 +21,7 @@ function [C2out,P] = solute_transport_ADE_N( P, W, S, B, C1, fluxsurf, fluxbot )
 % 
 %   For nitrification, immobilization and denitrification see She et al.,
 %   2005. An Inverse Method to Estimate the Source-Sink Term in the Nitrate
-%   Transport Equation. SSSAJ Soil Sci. Soc. Am. J. 71:26-34 
+%   Transport Equation. SSSAJ Soil Sci. Soc. Am. J. 71:26-34
 % 
 %   Remember that sl accounts for the type of solute:
 %       sl=1    --> NH_FR

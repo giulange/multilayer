@@ -12,7 +12,7 @@ Wzint = [0,Wzint];
 figure(7)
 clf
 whitebg('k')
-set(gcf, 'OuterPosition',fig_size)
+% set(gcf, 'OuterPosition',fig_size)
 hold on
 
 % soil layers limits:
@@ -23,9 +23,12 @@ for ii = 1:length(Wzint)
     line([X(2),X(2)+4],Y,'LineStyle','--','Color',[0.6,0.6,0.6])
     text(X(1),Y(1),num2str(Wzint(ii)),'HorizontalAlignment','right','VerticalAlignment','cap')
     if ii>1
-        text(mean(X),-mean(Wzint(ii-1:ii)),['soil layer ',num2str(ii-1)],'HorizontalAlignment','center','VerticalAlignment','cap')
+        text(mean(X),-mean(Wzint(ii-1:ii)),['soil layer ',num2str(ii-1)], ...
+            'HorizontalAlignment','center','VerticalAlignment','cap','FontSize',18)
     end
 end
+% triangole:
+fill( [5,6.5,3.5,5], [0,8,8,0], 'g')
 % vertical lines of soil profile:
 line([X(1),X(1)],-[Wzint(1),Wzint(end)])
 line([X(2),X(2)],-[Wzint(1),Wzint(end)])
