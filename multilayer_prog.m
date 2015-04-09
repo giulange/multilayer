@@ -13,7 +13,7 @@ for mm=1:M.nvp
         % Assign the stochastic values to the variables to be simulated
         % using Montecarlo:
         for nvars=1:length(M.list)
-            % ANTONIO: IS THAT FINE? IS WHAT WE NEED?
+            % set current montecarlo condition:
             eval( [M.list{ nvars } ' = M.data(M.combinations(',num2str(mm),',:),',num2str(nvars),')'';'] )
         end
     end
@@ -25,9 +25,8 @@ for mm=1:M.nvp
             P.nodes             = multilayer_soilgrid_sl(W.sg.sublayers,W.zint,P.nodes);
     end
     % plot: (should be optional)
-    multilayer_soilgrid_graph(P.nodes,W.zint);
+%     multilayer_soilgrid_graph(P.nodes,W.zint);
 %% Create printing matrices -- check with Antonio
-    
     % useless?
     W.dt                = W.dtin;
     
@@ -45,17 +44,16 @@ for mm=1:M.nvp
 %     P.TT                = 0;
     P.rnf               = 0;
     P.ktec              = 1;  
-%% Calcolo ET potenziale con E + T -- non dovrebbe stare dentro while(P.j)?
-
-% ETp0, Ep and Tp should vary with time!?
-    if and(W.itopvar==1,W.iveg==1)
-        P.ETp0          = V.Kc(1)*V.ETr(1);
-        % legge di Beer
-        P.Ep            = P.ETp0*exp(-V.extf*V.LAI(1));
-        P.Tp            = P.ETp0-P.Ep;
-        P.Droot         = V.Droot(1);
-    end
-%% Hydraulic mapping from soil layers to soil grid nodes
+%% Calcolo ET potenziale con E + T -- è già scritto dentro while su P.kk
+% ETp0, Ep and Tp and Droot will be defined again later at P.kk=1:
+%     if and(W.itopvar==1,W.iveg==1)
+%         P.ETp0          = V.Kc(1)*V.ETr(1);
+%         % legge di Beer
+%         P.Ep            = P.ETp0*exp(-V.extf*V.LAI(1));
+%         P.Tp            = P.ETp0-P.Ep;
+%         P.Droot         = V.Droot(1);
+%     end
+%% Hydraulic mapping :: soil layers --> soil grid nodes
     % Retention & conductivity at soil grid nodes from info at soil layers:
     for inode = 1:P.nz
         P.sh.dap(inode)        = W.dap(    P.nodes.soillayer(inode) );
@@ -81,28 +79,41 @@ for mm=1:M.nvp
 %% TIME simulation loop
     while P.time(P.j)<W.tmax
 %         waitbar( P.j / P.Nj )
-%% adattamento T sim al T stampa -- check at the end!
-        if P.time(P.j) >= W.tp(P.pp)
-            P.TT = 1;
-            P.time(P.j)     = W.tp(P.pp);
-            W.dt            = W.tp(P.pp);
-        elseif W.tp(P.pp)-P.time(P.j) < W.dtmin && W.tp(P.pp)-P.time(P.j)>=0
-            P.TT = 1;
-            P.time(P.j)     = W.tp(P.pp);
-            W.dt            = W.tp(P.pp);
-        end    
-%% lettura h iniziali o aggiornamento h -- check at the end!
-        P.jstar                 = P.j;
-        
-        % lettura h iniziali e aggiornamento h
-        if P.j==1
-            P.h1                = W.hin;
-        elseif P.j>P.jstar
-            P.h1                = P.h2; % --> not yet initialized!!
-        elseif P.j==P.jstar % come potrebbe essere diverso, se sopra impongo P.jstar=P.j ??
-            P.h1                = P.h1star;
+%% controllo sui tempi di stampa -- check:: position within while? correct?
+        if abs(P.time(P.j)-W.tp(P.pp))<0.0001
+            P.TT                = 1;
+        elseif P.time(P.j)>W.tp(P.pp)
+            P.time(P.j)         = W.tp(P.pp);
+            W.dt                = W.tp(P.pp)-P.time(P.j-1);
+            P.TT                = 1;
+        else
+            P.TT                = 0;
         end
-        P.h1star                = P.h1;
+%% adattamento T sim al T stampa -- check:: position within while? correct?
+        if P.time(P.j) >= W.tp(P.pp)
+            P.TT                = 1;
+            P.time(P.j)         = W.tp(P.pp);
+            W.dt                = W.tp(P.pp);
+        elseif W.tp(P.pp)-P.time(P.j) < W.dtmin && W.tp(P.pp)-P.time(P.j)>=0
+            P.TT                = 1;
+            P.time(P.j)         = W.tp(P.pp);
+            W.dt                = W.tp(P.pp);
+        end
+%% controllo tempi top boundary -- check:: position within while? correct?
+        if W.itopvar==1
+            if abs(P.time(P.j)-P.tq)<0.00001
+                P.T             = 1;
+                P.L             = 0;
+            elseif P.time(P.j)>P.tq
+                P.time(P.j)     = P.tq;
+                W.dt            = P.tq-P.time(P.j-1);
+                P.T             = 1;
+                P.L             = 0;
+            else
+                P.T             = 0;
+                P.L             = 1;
+            end
+        end
 %% calcolo valori potenziale osmotico per il tempo di simulazione (ERROR)
         if W.iosm==1 && V.ifs>3
             P.IEC               = 0;        % boolean: store if ktec incremented
@@ -111,55 +122,35 @@ for mm=1:M.nvp
                 P.ktec          = P.ktec+1;
                 P.IEC           = 1;
             end
-            P.ECstar            = ( P.time(P.j)-EC.t(P.ktec) )          / ...
-                              ( EC.t(P.ktec+1)-EC.t(P.ktec) )           * ...
-                              ( EC.data(:,P.ktec+1)-EC.data(:,P.ktec) ) + ...
-                                EC.data(:,P.ktec) ;
+            P.ECstar            = ( P.time(P.j)-EC.t(P.ktec) )             /...
+                                  ( EC.t(P.ktec+1)-EC.t(P.ktec) )          *...
+                                  ( EC.data(:,P.ktec+1)-EC.data(:,P.ktec) )+...
+                                    EC.data(:,P.ktec) ;
         end
-%% calc. param. ritenz. e conducib. ai vari nodi nei diversi strati
-        for i=1:P.nz
-            % curva ritenzione
-            P.teta(i)           = fnteta( P.h1(i), P.sh, i );
-
-            if or(P.sh.ifc(i)==1,P.sh.ifc(i)==3)
-                P.kond(i)       = fncond( P.teta(i),P.sh, i );
-            else
-                P.kond(i)       = fncond( P.h1(i),  P.sh, i );
-            end
-            P.cap(i)        = fncap(  P.h1(i),  P.sh, i );
-
-            if (and(W.iveg==1,W.itopvar==1))
-                if P.Droot>0
-                    P.dpt       = P.nodes.z(i);
-                    if W.iosm==1 && V.ifs>3
-                        P.op    = -P.ECstar(i)*360;
-                    else
-                        P.op    = 0;
-                    end
-                    if P.nodes.z(i)<P.Droot                    
-                        P.sink(i)       = fnsink( P.h1(i), P, W, V );
-                    else
-                        P.sink(i)       = 0;
-                    end
-                else
-                    P.sink(i)           = 0;
-                end
-            end        
+%% lettura h iniziali o aggiornamento h -- check at the end!
+        % lettura h iniziali e aggiornamento h
+        if P.j==1
+            P.h1                = W.hin;
+        elseif P.j>P.jstar  % if simulation runs normally
+            P.h1                = P.h2; % --> not yet initialized!!
+        elseif P.j==P.jstar % if simulation at previous step didn't go fine!
+            P.h1                = P.h1star;
         end
-%% controllo sui flussi al contorno superiore
+        P.h1star                = P.h1;     
+%% controllo sui flussi al contorno superiore -- ATTENTION: dovrebbe stare prima di SINK!! --> (perchè ho eliminato il pezzo fuori dal while)
         if W.itopvar==1 && P.L==0 % L ==> tutto ok nel j precedente
             P.tq                    = B.top.thqstar(P.kk+1);
 
-            if W.itbc==0 % flux
+            if W.itbc==0                    % flux
                 W.qsurf             = B.top.hqstar(P.kk);
-            elseif and(W.itbc==1,P.rnf==0) % potential
+            elseif and(W.itbc==1,P.rnf==0)  % potential
                 W.hsurf             = B.top.hqstar(P.kk);
             end
 
             if W.ibotvar==1
-                if W.ibbc==0
+                if W.ibbc==0                % flux
                     W.qbot          = B.bot.hqstar(P.kk);
-                elseif W.ibbc==1
+                elseif W.ibbc==1            % potentials
                     W.hbot          = B.bot.hqstar(P.kk);
                 end
             end
@@ -176,62 +167,69 @@ for mm=1:M.nvp
                 P.Droot             = V.Droot(P.kk);
             end
         end
-%% controllo tempi top boundary
-        if W.itopvar==1
-            if abs(P.time(P.j)-P.tq)<0.00001
-                P.T                 = 1;
-                P.L                 = 0;
-            elseif P.time(P.j)>P.tq
-                P.time(P.j)         = P.tq;
-                W.dt              = P.tq-P.time(P.j-1);
-                P.T                 = 1;
-                P.L                 = 0;
+%% calc. param. ritenz. e conducib. ai vari nodi nei diversi strati
+        for i=1:P.nz
+            % Ritenzione:
+            P.teta(i)               = fnteta( P.h1(i), P.sh, i );
+            % Conducibilità:
+            if P.sh.ifc(i)==1 || P.sh.ifc(i)==3
+                P.kond(i)           = fncond( P.teta(i),P.sh, i );
             else
-                P.T                 = 0;
-                P.L                 = 1;
+                P.kond(i)           = fncond( P.h1(i),  P.sh, i );
+            end
+            % Capacità:
+            P.cap(i)                = fncap(  P.h1(i),  P.sh, i );
+            % Sink:
+            if W.iveg==1 && W.itopvar==1
+                if P.Droot>0
+                    P.dpt           = P.nodes.z(i);
+                    if W.iosm==1 && V.ifs>3
+                        P.op        = -P.ECstar(i)*360;
+                    else
+                        P.op        = 0;
+                    end
+                    if P.nodes.z(i) < P.Droot                    
+                        P.sink(i)   = fnsink( P.h1(i), P, W, V );
+                    else
+                        P.sink(i)   = 0;
+                    end
+                else
+                    P.sink(i)       = 0;
+                end
             end
         end
-%% controllo sui tempi di stampa
-        if abs(P.time(P.j)-W.tp(P.pp))<0.0001
-            P.TT                    = 1;
-        elseif P.time(P.j)>W.tp(P.pp)
-            P.time(P.j)             = W.tp(P.pp);
-            W.dt                  = W.tp(P.pp)-P.time(P.j-1);
-            P.TT                    = 1;
-        else
-            P.TT                    = 0;
-        end
-%% flussi in superficie
-        P.km_max(1,P.j)             = (P.kond(1)+P.sh.k0(1))/2;
-        P.fluxsurf_max(P.j)         = -P.km_max(1,P.j)*((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);% Darcy
+%% FLUX :: TOP boundary
+        P.km_max(P.j)               = (P.kond(1)+P.sh.k0(1))/2;
+        P.fluxsurf_max(P.j)         = -P.km_max(P.j)*((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);% Darcy
 
-        if W.itbc==0
-            if and(and(and(W.itopvar==1,W.qsurf==0),W.iveg==1),W.itbc==0)
+        switch W.itbc
+            case 0
+%         if W.itbc==0
+            if and(and(and(W.itopvar==1,W.qsurf==0),W.iveg==1),W.itbc==0) % delete W.itbc=0
                 W.hsurf             = 13.3*10^5*log(W.vpr);
                 P.teta_hsurf        = fnteta( W.hsurf, P.sh, 1 );
 
                 if or(P.sh.ifc==1,P.sh.ifc==3)
-                    P.km(1,P.j)     = (P.kond(1) + fncond(P.teta_hsurf,P.sh,1))/2;
+                    P.km(P.j)       = (P.kond(1) + fncond(P.teta_hsurf,P.sh,1))/2;
                 else
-                    P.km(1,P.j)     = (P.kond(1) + fncond(W.hsurf,P.sh,1))/2;
+                    P.km(P.j)       = (P.kond(1) + fncond(W.hsurf,P.sh,1))/2;
                 end
-
-                P.Emax              = -P.km(1,P.j) * ...
+                P.Emax              = -P.km(P.j) * ...
                                      ((W.hsurf-P.h1(1))/(P.nodes.dz(1)/2)+1);
 
                 if P.Ep<P.Emax
                     W.qsurf         = P.Ep;
                     W.hsurf         = (3*P.h1(1)-P.h1(2))/2;
-                    O.fluxsurf(1,P.j,mm) = W.qsurf;
+                    O.fluxsurf(1,P.j,mm) = W.qsurf; % porta fuori (ma prima controlla che sia qsurf e non hsurf!!
                 else
                     W.qsurf         = P.Emax;
-                    O.fluxsurf(1,P.j,mm) = W.qsurf;
+                    O.fluxsurf(1,P.j,mm) = W.qsurf; % porta fuori
                 end
 
-            elseif and(W.itbc==0,W.qsurf<0)        
+            elseif and(W.itbc==0,W.qsurf<0) % delete W.itbc=0
                 W.hsurf             = (3*P.h1(1)-P.h1(2))/2;
                 O.fluxsurf(1,P.j,mm)= W.qsurf;
-            elseif and(and(W.itbc==0,W.qsurf==0),W.iveg==0)
+            elseif and(and(W.itbc==0,W.qsurf==0),W.iveg==0) % delete W.itbc=0
                 W.hsurf             = (3*P.h1(1)-P.h1(2))/2;
                 O.fluxsurf(1,P.j,mm)= W.qsurf;
             end
@@ -249,37 +247,40 @@ for mm=1:M.nvp
                 P.rnf               = 1;
                 W.itbc              = 1;
             end
-        end
-
-        if W.itbc==1
+%         end
+            case 1
+%         if W.itbc==1
             if P.rnf==1
                 W.hsurf             = W.hsurfmax;
-                P.km_max(1,P.j)     = (P.kond(1)+P.sh.k0(1))/2;
-                P.fluxsurf_max(P.j) = -P.km_max(1,P.j) * ...
+                P.km_max(P.j)       = (P.kond(1)+P.sh.k0(1))/2;
+                P.fluxsurf_max(P.j) = -P.km_max(P.j) * ...
                                   ((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);
                 O.fluxsurf(1,P.j,mm)= P.fluxsurf_max(P.j);
             elseif P.rnf==0
                 P.teta_hsurf        = fnteta( W.hsurf, P.sh, 1 );
                 if or(P.sh.ifc==1,P.sh.ifc==3)
-                    P.km(1,P.j)     = ( P.kond(1) + ...
+                    P.km(P.j)       = ( P.kond(1) + ...
                                         fncond(P.teta_hsurf,P.sh,1) )/2;
                 else
-                    P.km(1,P.j)     = ( P.kond(1) + ...
+                    P.km(P.j)       = ( P.kond(1) + ...
                                         fncond(W.hsurf,P.sh,1) )/2;
                 end
-                O.fluxsurf(1,P.j,mm)= -P.km(1,P.j) * ...
+                O.fluxsurf(1,P.j,mm)= -P.km(P.j) * ...
                                      ((W.hsurf-P.h1(1))/(P.nodes.dz(1)/2)+1);
             end
         end
-%% flussi al fondo
+%% FLUX :: BOTTOM boundary
         if W.ibbc==2
             W.hbot                  = P.h1(P.nz)-(W.grad-1)*P.nodes.dz(P.nz+1);
         end
-
+        
+%         switch W.ibbc
+%             case 0        
         if W.ibbc==0
             O.fluxbot(1,P.j,mm)          = W.qbot;
             W.hbot(P.j)             = (P.h1(P.nz)-P.h1(P.nz-1))*...
                                        P.nodes.dz(P.nz+1)/P.nodes.dz(P.nz)+P.h1(P.nz);
+%             case {1,2}
         elseif or(W.ibbc==1,W.ibbc==2)
             P.teta_hbot             = fnteta( W.hbot, P.sh, P.nz);
             if or(P.sh.ifc==1,P.sh.ifc==3)
@@ -292,24 +293,27 @@ for mm=1:M.nvp
             O.fluxbot(1,P.j,mm)     = -P.kp(P.nz) * ...
                                       ((P.h1(P.nz)-W.hbot)/P.nodes.dz(P.nz+1)+1);
         end
-%% flussi ai nodi intermedi
+%% FLUX :: INTERMEDIATE nodes -- errors? check with Antonio
         % Check errors for dz(?):
         %   > at P.flux(1,.)        --> dz(1)           *error
+        %       - denominator: 1.5? +1? dz(1) soltanto?
         %   > at P.flux(P.nz,.)     --> dz(end)         *error
+        %       - denominator: +1?
         %   > at P.flux(2:P.nz-1,.) --> dz(2:P.nz-1)    *good!
         
         P.flux(1)               = -P.kond(1) * ((W.hsurf-P.h1(2)) ...
                                       /(1.5*P.nodes.dz(1))+1);
         P.flux(P.nz)            = -P.kond(P.nz) * ((P.h1(P.nz-1)-W.hbot)...
                                       /(P.nodes.dz(P.nz+1)+P.nodes.dz(P.nz))+1);
-        
         P.flux(2:P.nz-1)        = -P.kond(2:P.nz-1)     .*( ...
                                       ( P.h1((2:P.nz-1)-1)  -  ...
                                       P.h1((2:P.nz-1)+1) )  ./ ...
                                       (2*P.nodes.dz(2:P.nz-1))+1      );
-%% calcolo flussi all'interfaccia -- error!! check with Antonio
+%% calcolo flussi all'interfaccia -- check with Antonio
+        % Definiamo l'obiettivo, poi valutiamo come implementare.
         % P.k = 2:W.nlay;
-        % P.flux(P.nodes.cumsum(P.k),P.j) = ...
+        
+        % why +2 and not +1??
         P.flux(P.nodes.cumsum(2:W.nlay)) = 2/3 * P.flux(P.nodes.cumsum(2:W.nlay)-1) +...
                                            1/3 * P.flux(P.nodes.cumsum(2:W.nlay)+2);
 %% flussi cumulati in superficie ==> not used
@@ -328,34 +332,41 @@ for mm=1:M.nvp
 %                                       fluxcum(i,P.j-1);
 %             end
 %         end
-%% soluzione del sistema tridiagonale (see WARNING)
-       P.h2                        = fnsyst( P, W );
-%% calcolo capacita' metodo implicito (vedi Karvonen)
+%% soluzione del sistema tridiagonale (see WARNING) -- obiettivo?
+        % Obiettivo?
+        P.h2                        = fnsyst( P, W );
+%% calcolo capacita' metodo implicito (vedi Karvonen) -- obietivo?
         for i=1:P.nz
             if abs(P.h2(i)-P.h1(i))>W.tolle1
-                P.cap(i)       = ( fnteta( P.h2(i),P.sh,i) -  ...
-                                        fnteta(P.h1(i),P.sh,i) ...
-                                      ) / ( P.h2(i)-P.h1(i) ) ;
+                P.cap(i)            = ( fnteta( P.h2(i),P.sh,i) -   ...
+                                        fnteta(P.h1(i),P.sh,i)      ...
+                                      ) / ( P.h2(i)-P.h1(i) )       ;
             end
         end
         % fnsyst con il nuovo P.cap:
-        O.h22(:,P.j,mm)            = fnsyst( P, W );
-%% calcolo capacita' al tempo medio
-        % W.tolle1=tolleranza per la convergenza della capacit�
-        P.SS                       = 0;
-        P.niter                    = 0; % Nj per convergenza capacit�.
+        O.h22(:,P.j,mm)             = fnsyst( P, W );
+%         figure(13),hold on, plot(squeeze(O.h22(:,P.j,mm))), hold off;
+%% calcolo capacita' al tempo medio -- obiettivo?
+        % W.tolle1=tolleranza per la convergenza della capacità
+        P.SS                        = 0;
+        P.niter                     = 0; % Nj per convergenza capacità.
         while and(max(abs(O.h22(:,P.j,mm)-P.h2))>W.tolle1,P.SS==0)
             for i=1:P.nz            
                 if abs(O.h22(i,P.j,mm)-P.h2(i))>W.tolle1        
-                    P.cap(i)    = ( fnteta(O.h22(i,P.j,mm),P.sh,i) -   ...
-                                        fnteta(P.h1(i),P.sh,i)     ...
-                                      ) / ( O.h22(i,P.j,mm)-P.h1(i) )  ;
+                    P.cap(i)        = ( fnteta(O.h22(i,P.j,mm),P.sh,i)- ...
+                                        fnteta(P.h1(i),P.sh,i)          ...
+                                      ) / ( O.h22(i,P.j,mm)-P.h1(i) )   ;
                 end
             end
+            % store previous potentials:
             P.h2                    = O.h22(:,P.j,mm);
+            % compute potentials at new cap:
             O.h22(:,P.j,mm)         = fnsyst( P, W );
 
-            P.niter                = P.niter+1;
+            P.niter                 = P.niter+1;
+            % Ribaltare il pezzo sopra con quello sotto (niter>10 va
+            % all'inizio del while, per cui se si verifica condizione non
+            % esegue il blocco di calcoli che stà adesso sopra).
             % Migliorare soluzione, o comunque salvare in M.nnc l'eventuale simulazione saltata
             if P.niter>10
                 P.SS                = 1;
@@ -363,11 +374,11 @@ for mm=1:M.nvp
                     P.LL            = 0;
                 elseif W.dt>W.dtmin
                     P.LL            = 1;
-                    W.dt          = W.dt/3;
+                    W.dt            = W.dt/3;
                     P.time(P.j)     = P.time(P.j)-2*W.dt;
                     if W.dt<=W.dtmin
                         P.time(P.j) = P.time(P.j) - W.dt + W.dtmin;
-                        W.dt      = W.dtmin;
+                        W.dt        = W.dtmin;
                     end
                     % Ripristino flussi o potenziali nel caso di
                     % annullamento dell'iterazione per riduzione del
@@ -394,39 +405,40 @@ for mm=1:M.nvp
         end
         
         if P.niter<=3
-            W.dt                  = W.multmin * W.dt;
+            W.dt                    = W.multmin * W.dt;
             if W.dt>W.dtmax
-                W.dt              = W.dtmax;
+                W.dt                = W.dtmax;
             end
-            P.LL                  = 0;
+            P.LL                    = 0;
             
         elseif and(P.niter>=4,P.niter<=10)
-            W.dt                  = W.multmax * W.dt;
+            W.dt                    = W.multmax * W.dt;
             if W.dt<W.dtmin
-                W.dt              = W.dtmin;
+                W.dt                = W.dtmin;
             end
-            P.LL                  = 0;
+            P.LL                    = 0;
         end
 %% ?? define cell ??
+        P.jstar                     = P.j;
         if P.LL==0
 %% trasporto soluti CDE
             if W.isol==2
             % update intial concentrations
                 if P.j==1% first iteration
                     % [W.dz,1:2,P.Nj]
-                    C1(:,1)             = S.CDE.Cin.NH;
-                    C1(:,2)             = S.CDE.Cin.NO;
+                    P.C1(:,1)       = S.CDE.Cin.NH;
+                    P.C1(:,2)       = S.CDE.Cin.NO;
                 elseif P.j>P.jstar% se avanza...
                     % OLD % P.C1(:,:,P.j) = P.C2(:,:,P.j-1);
-                    C1                  = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
+                    P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
                 elseif P.j==P.jstar% se non puo' avanzare...
                     % OLD % P.C1(:,:,P.j) = P.C1star(:,:,P.j);
-                    C1                  = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
+                    P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
                 end
-                %[O,P] = solute_transport_ADE_N( P, W, S, B, O, mm );
-                [O.C2(:,P.j,mm,:),P]    = solute_transport_ADE_N(P,W,S.CDE,...
-                                        B.Ctop,C1,O.fluxsurf(1,P.j,mm),...
-                                        O.fluxbot(1,P.j,mm) );
+                %[O,P] = multilayer_transport_solute_N_ade( P, W, S, B, O, mm );
+                [O.C2(:,P.j,mm,:),P]= multilayer_transport_solute_N_ade(P,W,S.CDE,...
+                                      B.Ctop,P.C1,O.fluxsurf(1,P.j,mm),...
+                                      O.fluxbot(1,P.j,mm) );
             end
 %% restore qsurf & hsurf -- check with Antonio!!
 % Serve a ripristinare il valore di W.qsurf che potrebbe essere stato
@@ -483,12 +495,19 @@ for mm=1:M.nvp
             P.j         = P.j+1;
             P.time(P.j) = P.time(P.j-1)+W.dt;
         end% if P.LL=0    
+%% PLOT -- tmp
+        figure(88),whitebg('k')
+        hold on,subplot(411),plot([P.sh.tetafc,P.teta])
+        legend('tetafc','teta'),title(sprintf('j = %4d',P.j-1)), hold off;
+        hold on,subplot(412),plot([P.sink]), legend('sink'),hold off;
+        hold on,subplot(413),plot([P.h1,P.h2]), legend('h1','h2'),hold off;
+        hold on,subplot(414),plot([P.cap,P.kond]), legend('cap','kond'),hold off;
     end% P.time(P.j)<W.tmax
 %% MONTECARLO --END--
 end% mm=1:M.nvp
 % close(hwb) % close waitbar
-%% SAVE -- incomplete
-if W.MTCL == 0
+%% SAVE -- incomplete [set which times and nodes to print!!]
+if W.MTCL == 0 || M.nvp == 1
     multilayer_save( O, proj, P.jstar )
 elseif W.MTCL == 1
     multilayer_save_mcs( O, proj )
