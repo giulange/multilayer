@@ -38,7 +38,10 @@ W.dtin              = 0.00001;
 W.nlay              = 3;
 % zint:                 Soil layer bottom boundaries.
 W.zint              = [25, 60, 300];
+
+% -------------------------------------------------------------------------
 % VERTICAL DISCRETIZATION: [W.sg] --> sg='soil geometry'
+% -------------------------------------------------------------------------
 % type:                 Type of vertical discretization used to build the
 %                       soil grid geometry.
 %                       The following can be selected:
@@ -55,6 +58,7 @@ W.zint              = [25, 60, 300];
 %                           > 3     --> any other kind of geometry we would
 %                                       like to implement!
 W.sg.type           = 1;
+ 
 % regular:              It creates a soil grid with regular node spacing,
 %                       at least within the same soil layer.
 %                       Node spacing is quite similar between soil layers,
@@ -69,7 +73,8 @@ W.sg.type           = 1;
 %                                   flow. It includes the top and the botom
 %                                   boundaries.
 %                       %# numnodes #%
-W.sg.regular        = [     100          ];
+W.sg.regular        = 100;
+
 % sublayers:            Define a specific grid in which each sublayer can
 %                       be different from the others but within which nodes
 %                       spacing is regular.
@@ -111,8 +116,12 @@ W.sg.sublayers      = [         1     1      5.0      1.0     5
 % anotherkind:          Whatever we want to implement (we should check what
 %                       HYDRUS makes as a suggestion).
 W.sg.anotherkind    = [];
+% -------------------------------------------------------------------------
 
+
+% -------------------------------------------------------------------------
 % SOIL GRID NODES WITH HYDRAULIC CHARACTERISTICS:
+% -------------------------------------------------------------------------
 % W.crc.? --> curva ritenzione/conducibilità: es. W.crc.dap, W.crc.tetas, ecc. 
 W.dap               = [1.1, 1.1, 1.1];
 W.tetas             = [0.340, 0.310, 0.300];
@@ -130,12 +139,13 @@ W.k0macr            = [0.000, 0.000, 0.000];
 W.bita              = [0.5, 0.5, 0.5];
 W.bita2             = [9999, 9999, 9999];
 W.ifc               = [1, 1, 1]; 
-
 % ??
 W.vpr               = 0.5;
 W.tetal             = 0.0002;
 W.bital             = 15.0;
 W.hsurfmax          = 0.0;
+% -------------------------------------------------------------------------
+
 
 W.itopvar           = 1;
 W.ibotvar           = 0;
@@ -148,9 +158,16 @@ W.ibotvar           = 0;
 %                               (Ctopbound_inp.txt)
 W.iCtopvar          = 1;
 
-% itbc                  ???
-W.itbc              = 0; % (0=flux; 1=potential)
-W.ibbc              = 2; % (0=flux; 1=potential; 2=gradient)
+% itbc:             Kind of top boundary condition:
+%                       0   --> flux
+%                       1   --> potential
+W.itbc              = 0;
+
+% ibbc:             Kind of top boundary condition:
+%                       0   --> flux
+%                       1   --> potential
+%                       2   --> gradient
+W.ibbc              = 2;
 
 % Can I use W.hqsurf instead of the two following???
 W.hsurf             = 9999;
@@ -170,12 +187,6 @@ W.ntp               = 131;
 % ----------------------------------
 B.top.description   = 'MARWA CORRECTED NOVEMBRE 2011';%--> 'a discretization...'
 B.top.ntbc          = 126;
-% **DATA**
-% times of flux/potential at top boundary.
-B.top.thqstar       = 0:1:B.top.ntbc-1;
-% flux/potential at top boundary.
-B.top.hqstar        = [ -0.961	-0.361	0	-1.325	-0.314	-0.489	-0.489	-0.472	-0.489	0	-0.911	-0.489	-0.489	-0.492	-0.389	-0.417	0	-0.407	0	-0.647	0	-0.833	0	-0.6	0	-0.69	0	-0.685	0	-0.518	0	0	-0.68	0	-0.661	0	-0.638	0	0	-0.578	0	-0.623	0	-0.516	-0.6	0	-0.52	0	-0.451	0	-0.643	0	-0.487	0	0	-0.526	0	-0.463	-0.5	0	-0.726	0	-0.611	0	-0.549	-0.7	0	-0.402	0	-0.598	0	-0.793	0	0	-0.537	0	0	-0.527	0	-0.5	0	-0.575	0	0	-0.499	0	-0.512	0	0	-0.499	0	-0.48	0	-0.508	0	0	-0.562	0	0	0	-0.518	0	0	-0.526	0	0	0	-0.463	0	0	-0.537	0	-0.5	0	-0.401	0	0	-0.544	0	0	0	-0.568	0	0	-0.405	0 ];
-
 %%   BOTTOM BOUNDARY INPUT
 % ----------------------------------
 B.bot.description   = 'MARWA CORRECTED botboundary';%--> 'a discretization...'
@@ -190,7 +201,7 @@ B.bot.nbbc          = 10;
 % Si assume che FR sia liquido e rappresenti l'apporto in superficie
 % (C_input nell'equazione ADE) mentre le altre forme si considerano
 % distribuite su uno spessore dL ed entrano nell'ADE come sink-source.
-% Tstar � la temperatura in �C per il calcolo di Kmineralizzazione, sia
+% Tstar è la temperatura in °C per il calcolo di Kmineralizzazione, sia
 % rapida che lenta.
 
 B.Ctop.description  = 'MARWA CORRECTED Ctopbound';%--> 'a discretization...'
@@ -203,30 +214,50 @@ B.Ctop.KmORG_sw     = 0.002; % andrebbe messo il punto tra "KmORG" ed "sw"
 B.Ctop.dL           = 30;   % [cm]
 %%   VEGETATION INPUT
 % ----------------------------------
-
 V.description       = 'prova Lodi Arm_Art vegetation';%--> 'the plant used was...'
 V.nET               = 126;
-V.extf              = 0.6;  % esponente legge Beers
-V.ifs               = 1;    % indicatore funz. sink {Feddes, vanGen.} 
-V.ifg               = 1;    % indicatore funz. distribuz. appar.rad.
-V.hI                = -1;   % pot. stress idrico Feddes
-V.hII               = 10;   % pot. stress idrico Feddes
-V.hIIIH             = -400; % pot. stress idrico Feddes
-V.hIIIL             = -600; % pot. stress idrico Feddes
-V.hIV               = -8000;% pot. stress idrico Feddes
-V.hw50              = -1000;% pot.idrico dimezzamento traspirazione van Genuchten
-V.pw1               = 3;    % esponente stress idrico van Genuchten
-V.hs50              = -1500;% pot.osmotico dimezzamento traspirazione van Genuchten
-V.ps1               = 3;    % esp.stress osmotico van Genuchten
-V.aMH               = -760; % par. stress osmotico Mass & Hofmann
-V.bMH               = 0.000794;% par. stress osmotico Mass & Hofmann
-V.rda               = 1.027;% par. distribuzione radici logistica
-V.rdb               = 15.016;% par. distribuzione radici logistica
-V.rdc               = 0.074;% par. distribuzione radici logistica
-V.zc                = 25;   % par.distribuzione radici doppia-lineare
-V.g0                = 0.032;% par.distribuzione radici doppia-lineare
-V.gzc               = 0.008;% par.distribuzione radici doppia-lineare
-V.Drf               = 85;   % par.distribuzione radici doppia-lineare
+% extf:             Esponente legge Beers.
+V.extf              = 0.6;
+% ifs:              Indicatore funz. sink {Feddes, vanGen.}
+V.ifs               = 1;
+% ifg:              Indicatore funz. distribuz. appar.rad.
+V.ifg               = 1;
+% hI:               Pot. stress idrico Feddes
+V.hI                = -1;
+% hII:              Pot. stress idrico Feddes
+V.hII               = 10;
+% hIIIH:            Pot. stress idrico Feddes
+V.hIIIH             = -400;
+% hIIIL:            Pot. stress idrico Feddes
+V.hIIIL             = -600;
+% hIV:              Pot. stress idrico Feddes
+V.hIV               = -8000;
+% hw50:             Pot. idrico dimezzamento traspirazione van Genuchten
+V.hw50              = -1000;
+% pw1:              Esponente stress idrico van Genuchten
+V.pw1               = 3;
+% hs50:             Pot.osmotico dimezzamento traspirazione van Genuchten
+V.hs50              = -1500;
+% ps1:              Esp.stress osmotico van Genuchten
+V.ps1               = 3;
+% aMH:              Par. stress osmotico Mass & Hofmann
+V.aMH               = -760;
+% bMH:              Par. stress osmotico Mass & Hofmann
+V.bMH               = 0.000794;
+% rda:              Par. distribuzione radici logistica
+V.rda               = 1.027;
+% rdb:              Par. distribuzione radici logistica
+V.rdb               = 15.016;
+% rdc:              Par. distribuzione radici logistica
+V.rdc               = 0.074;
+% zc:               Par. distribuzione radici doppia-lineare
+V.zc                = 25;
+% g0:               Par. distribuzione radici doppia-lineare
+V.g0                = 0.032;
+% gzc:              Par. distribuzione radici doppia-lineare
+V.gzc               = 0.008;
+% Drf:              Par. distribuzione radici doppia-lineare
+V.Drf               = 85;
 %%   SOLUTE Jury INPUT
 % ----------------------------------
 if W.isol==1
@@ -244,9 +275,9 @@ S.CDE.Cinput        = 0.040;
 % Topt:                 The optimum temperature (°C) for the XXX process
 S.CDE.Topt          = 25;
 % NX:                   Where X = {'H':NH4, 'O':NO3}
-S.CDE.NX.Kf1        = [0.100, 1.000]; % ['NH','NO']
+S.CDE.NX.Kf1        = [0.100, 0.000]; % ['NH','NO']
 S.CDE.NX.Kf2        = [1.000, 1.000];
-S.CDE.NX.Kr         = [0.000, 1.000];
+S.CDE.NX.Kr         = [1.000, 1.000];
 end
 %%   EC DATA
 % ----------------------------------
@@ -306,17 +337,10 @@ M.nvp               = 22;
 %                   the montecarlo.txt file. For instance:
 %                       = { 'W.tetas', 'W.zint' };
 M.list              = { 'W.tetas','W.tetar','W.alfvg','W.en','W.k0' };
-
+% data:             Configuration for each Montecarlo repetition.
 M.data              = load(fullfile(proj.ipath,'montecarlo.txt'));
 
-% ----Servono questi sotto, e quali?----
-M.tetasum           = 0;
-M.tetasumSQ         = 0;
-M.concsum           = 0;
-M.concsumSQ         = 0;
-M.fluxsum           = 0;
-M.fluxsumSQ         = 0;
-% Number of nonconvergences (niter>10,dt<=W.dtmin)
+% nnc:              Number of nonconvergences (niter>10,dt<=W.dtmin)
 M.nnc               = 0;
 % -----------------------------
 end

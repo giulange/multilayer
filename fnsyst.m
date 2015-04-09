@@ -3,8 +3,10 @@ function h2 = fnsyst( P, W )
 
 %% init
 h2              = NaN( P.nz, 1);
-
-%% definire km(i) [� il (ki-1/2)] e il kp(i) [� il (ki+1/2)] 
+AA              = NaN( P.nz, 1);
+BB              = NaN( P.nz, 1);
+CC              = NaN( P.nz, 1);
+%% definire km(i) [è il (ki-1/2)] e il kp(i) [� il (ki+1/2)] 
 
 kp(1,1)         = (P.kond(1) + P.kond(2))/2;
 teta_hbot       = fnteta( W.hbot,  P.sh, P.nz );
@@ -26,6 +28,7 @@ km(i,1)         = ( P.kond(i)    + P.kond(i-1)           )/2;
 %% risolvere il sistema (vedi swap)
 %% intermediate nodes
 i               = (2:(P.nz-1));
+% d(dx/dz)/dz ==> d(dx/dz1)/dz2
 ratio(i,1)      = W.dtin ./ ( P.nodes.dz(i).^2 );
 alfa(i,1)       = -ratio(i).*km(i);
 beta(i,1)       = P.cap(i) + ratio(i).*km(i) + ratio(i).*kp(i);
@@ -71,19 +74,19 @@ else
 end
 
 % algoritmo di Thomas
-BB(1,1)         = gamma(1)/beta(1);
-AA(1,1)         = delta(1)/beta(1);
+BB(1)           = gamma(1)/beta(1);
+AA(1)           = delta(1)/beta(1);
 
 % metodo della sostituzione
 for i=2:1:P.nz
-    CC(i,1)     = beta(i) - alfa(i).*BB(i-1);
-    AA(i,1)     = ( delta(i) - alfa(i).*AA(i-1) ) ./ CC(i);
-    BB(i,1)     = gamma(i) ./ CC(i);
+    CC(i)       = beta(i) - alfa(i).*BB(i-1);
+    AA(i)       = ( delta(i) - alfa(i).*AA(i-1) ) ./ CC(i);
+    BB(i)       = gamma(i) ./ CC(i);
 end
 
 h2(P.nz)        = AA(P.nz);
 for i=(P.nz-1):-1:1
     h2(i)       = AA(i) - BB(i).*h2(i+1);
 end
-
+%% end
 return

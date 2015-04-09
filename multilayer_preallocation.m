@@ -1,5 +1,6 @@
 %% pre-allocate all variables required within each Monte Carlo Simulation
 
+% -GEOMETRY
 % --nodes
 P.nodes.num                     = NaN( W.nlay+0,    1 );
 P.nodes.thickness               = NaN( W.nlay+0,    1 );
@@ -33,27 +34,34 @@ P.kp                            = NaN(P.nz,1);
 P.flux                          = NaN(P.nz,1);
 P.h1                            = NaN(P.nz,1);
 P.h1star                        = NaN(P.nz,1);
+P.h2                            = NaN(P.nz,1);
 % --others:
 P.ECstar                        = NaN(P.nz,1);
-% --scalars:
-% ---counters:
+P.C1                            = NaN(P.nz,2);
+
+% -TIME:
+P.time                          = NaN(1,P.Nj); % **USEFULL on Nj
+P.km_max                        = NaN(1,P.Nj); % **USELESS on Nj
+P.fluxsurf_max                  = NaN(1,P.Nj); % **USELESS on Nj
+P.km                            = NaN(1,P.Nj); % **USELESS on Nj
+
+% -SCALARS:
+% --counters:
 P.j                             = NaN;
 P.jstar                         = NaN;
 P.k                             = NaN;
 P.SS                            = NaN;
 P.niter                         = NaN;
-% ---others:
+% --others:
 P.dpt                           = NaN;
 P.op                            = NaN;
 P.teta_hsurf                    = NaN;
 P.Emax                          = NaN;
 P.teta_hbot                     = NaN;
-% --vectors:
-P.h2                            = NaN(P.nz,1);
-% ---time:
-P.time                          = NaN(1,P.Nj);
-P.km_max                        = NaN(1,P.Nj);
-P.fluxsurf_max                  = NaN(1,P.Nj);
-P.km                            = NaN(1,P.Nj);
-% ---others:
+P.ETp0                          = NaN;
+P.Ep                            = NaN;
+P.Tp                            = NaN;
+P.Droot                         = NaN;
+
+% -OTHERS:
 P.Cinput                        = NaN(2,1);

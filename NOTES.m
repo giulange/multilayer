@@ -32,6 +32,10 @@
 %     by the problem at hand, hold all the information, but this can be set
 %     by the user as input).
 
+%% O.h22 -- two assignments, which one?
+% There are two assignments to O.h22, but which one is the correct one? I
+% think that now O.h22 stores different things according to where the last
+% assignment is!
 %% pedici usati per iterare sulla griglia di suolo -- check with Antonio
 % Esistono 2 modalità di accesso alla griglia di suolo nel programma:
 %   -la prima usa tutti e solo in nodi interni 1:P.nz
@@ -58,6 +62,9 @@
 %   P.Cinput(1)=...  &  P.Cinput(2)=...
 % but only used in _ADE_
 % Try to adjust things!!!!!
+%% C1 in _ADE_N
+% We assign to C1 the same values of O.C2 based on different conditions.
+% This is logically not possible!!! Check also checking old code.
 %% P.h1star [remove?]
 %% fluxin
 % In _ADE_N you are reading at P.nz+1 of P.flux, which is impossible (it's
