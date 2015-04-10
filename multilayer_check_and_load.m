@@ -37,17 +37,21 @@ end
 %                               W.Nj_shp shape parameter.
 P.Nj                        = round( W.tmax / (10^(W.Nj_shp + ...
                                   mean([log10(W.dtin),log10(W.dtmax)]))) );
-%% n-nodes
+%% P.nz & SOIL GRID GEOMETRY
 W.sg.sublayers_names        = {'SoilLay','SubLay','hSubLay','hNode','nNodes'};
-if W.sg.type == 1
-    P.nz = W.sg.regular(1);
-elseif W.sg.type == 2
-    P.nz = sum(W.sg.sublayers(:,5));
-else
-    error('Type of soil geometry not properly set!')
+switch W.sg.type
+    case 1 % regular soil grid
+        P.nz                = W.sg.regular(1);
+        P.nodes             = multilayer_soilgrid(P.nz,W.zint);
+    case 2 % sl --> sub-layers
+        P.nz                = sum(W.sg.sublayers(:,5));
+        P.nodes             = multilayer_soilgrid_sl(W.sg.sublayers,W.zint);
+    otherwise
+        % Not yet implemented
+        err_msg_wrong_par_set( 'W.sg.type' )
 end
-% other?
-% ...
+% plot: (should be optional)
+%     multilayer_soilgrid_graph(P.nodes,W.zint);
 %% W.dtin<W.dtmin
 if W.dtin<W.dtmin
     warning('W.dtin=%f < W.dtmin=%f',W.dtin,W.dtmin)
@@ -73,17 +77,19 @@ else
     end
 end
 %% P.hin
-if isempty(W.hin)
-    % read from I_depth.txt file.
-    % P.hin = VAR(:,col);
-else
-    if size(W.hin,1)==1
-        P.hin        = repmat(W.hin(1,2),P.nz,1);
-    else
-
-    end
-end
-%% ?
+P.hin       = multilayer_sub_valorization_depth( W.hin, P.nz, P.nodes.z(1:end-1) );
+%% P.CDECinNH
+P.CDECinNH  = multilayer_sub_valorization_depth( S.CDE.Cin.NH, P.nz, P.nodes.z(1:end-1) );
+%% P.CDECinNO
+P.CDECinNO  = multilayer_sub_valorization_depth( S.CDE.Cin.NO, P.nz, P.nodes.z(1:end-1) );
+%% P.CDElambda
+P.CDElambda = multilayer_sub_valorization_depth( S.CDE.lambda, P.nz, P.nodes.z(1:end-1) );
+%% P.CDEKnitr
+P.CDEKnitr = multilayer_sub_valorization_depth( S.CDE.Knitr, P.nz, P.nodes.z(1:end-1) );
+%% P.CDEKimmob
+P.CDEKimmob = multilayer_sub_valorization_depth( S.CDE.Kimmob, P.nz, P.nodes.z(1:end-1) );
+%% P.CDEKdenitr
+P.CDEKdenitr = multilayer_sub_valorization_depth( S.CDE.Kdenitr, P.nz, P.nodes.z(1:end-1) );
 %% condizioni al contorno superiore e inferiore
 % if (W.itopvar==0 && W.ibotvar==0) || (W.itopvar==1 && W.ibotvar==1)
 %     error('W.itopvar=%d cannot be equal to W.ibotvar=%d',W.itopvar,W.ibotvar)

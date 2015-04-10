@@ -5,7 +5,7 @@ for mm=1:M.nvp
     progress_bar(mm,M.nvp,'multilayer prog')
 %     hwb = waitbar(0,['Please wait... [MCS=',num2str(mm),']']);
 %% Preallocation
-    run multilayer_preallocation
+    run multilayer_preallocation.m
 %% Define conditions for current montecarlo setting
     if W.MTCL==1
         % ripristinare uso di M.nnc
@@ -17,15 +17,6 @@ for mm=1:M.nvp
             eval( [M.list{ nvars } ' = M.data(M.combinations(',num2str(mm),',:),',num2str(nvars),')'';'] )
         end
     end
-%% SOIL GRID GEOMETRY
-    switch W.sg.type
-        case 1 % regular soil grid
-            P.nodes             = multilayer_soilgrid(P.nz,W.zint,P.nodes);
-        case 2 % sl --> sub-layers
-            P.nodes             = multilayer_soilgrid_sl(W.sg.sublayers,W.zint,P.nodes);
-    end
-    % plot: (should be optional)
-%     multilayer_soilgrid_graph(P.nodes,W.zint);
 %% Create printing matrices -- check with Antonio
     % useless?
     W.dt                = W.dtin;
@@ -158,8 +149,8 @@ end
             % update intial concentrations
                 if P.j==1% first iteration
                     % [W.dz,1:2,P.Nj]
-                    P.C1(:,1)       = S.CDE.Cin.NH;
-                    P.C1(:,2)       = S.CDE.Cin.NO;
+                    P.C1(:,1)       = P.CDECinNH;
+                    P.C1(:,2)       = P.CDECinNO;
                 elseif P.j>P.jstar% se avanza...
                     % OLD % P.C1(:,:,P.j) = P.C2(:,:,P.j-1);
                     P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
@@ -228,12 +219,12 @@ end
             P.time(P.j) = P.time(P.j-1)+W.dt;
         end% if P.LL=0    
 %% PLOT -- tmp
-        figure(88),whitebg('k')
-        hold on,subplot(411),plot([P.sh.tetafc,P.teta])
-        legend('tetafc','teta'),title(sprintf('j = %4d',P.j-1)), hold off;
-        hold on,subplot(412),plot([P.sink]), legend('sink'),hold off;
-        hold on,subplot(413),plot([P.h1,P.h2]), legend('h1','h2'),hold off;
-        hold on,subplot(414),plot([P.cap,P.kond]), legend('cap','kond'),hold off;
+%         figure(88),whitebg('k')
+%         hold on,subplot(411),plot([P.sh.tetafc,P.teta])
+%         legend('tetafc','teta'),title(sprintf('j = %4d',P.j-1)), hold off;
+%         hold on,subplot(412),plot([P.sink]), legend('sink'),hold off;
+%         hold on,subplot(413),plot([P.h1,P.h2]), legend('h1','h2'),hold off;
+%         hold on,subplot(414),plot([P.cap,P.kond]), legend('cap','kond'),hold off;
     end% P.time(P.j)<W.tmax
 %% MONTECARLO --END--
 end% mm=1:M.nvp

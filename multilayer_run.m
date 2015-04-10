@@ -6,6 +6,9 @@ fpf = @(TXT) fprintf('%s\n', TXT);
 
 %% prog
 
+% fpf('Static initialization...')
+% run multilayer_preallocation_static.m
+
 fpf('Loading prog vars...')
 run multilayer_conf_admin.m
 

@@ -1,3 +1,5 @@
+%% internal advanced parameters
+
 W.tolle1            = 0.0001;
 W.dtmin             = 0.00000001;
 W.dtmax             = 0.5;
@@ -12,6 +14,7 @@ W.multmax           = 0.7;
 %                   applications.
 W.Nj_shp            = 2.0;
 
+%% output files
 % files:            Set all the filenames used to save the following
 %                   variables:
 %                   { O.C2, O.h22, O.fluxsurf, O.fluxbot, O.runoff }

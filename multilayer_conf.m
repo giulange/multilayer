@@ -198,12 +198,12 @@ W.hsurfmax          = 0.0;
 W.itopvar           = 1;
 W.ibotvar           = 0;
 
-% iCtopvar              Indice per la lettura dei dati di concentrazione al
-%                       contorno superiore:
-%                           0:  valore di concentrazione Cinput
-%                               (solute_CDE_inp.txt)
-%                           1:  condizioni al contorno superiore variabili
-%                               (Ctopbound_inp.txt)
+% iCtopvar          Indice per la lettura dei dati di concentrazione al
+%                   contorno superiore:
+%                       0:  valore di concentrazione Cinput
+%                           (solute_CDE_inp.txt)
+%                       1:  condizioni al contorno superiore variabili
+%                           (Ctopbound_inp.txt)
 W.iCtopvar          = 1;
 
 % itbc:             Kind of top boundary condition:
@@ -306,7 +306,7 @@ V.g0                = 0.032;
 V.gzc               = 0.008;
 % Drf:              Par. distribuzione radici doppia-lineare
 V.Drf               = 85;
-%%   SOLUTE Jury INPUT
+%%   SOLUTE Jury INPUT -- translate definitions in variables that can be used by the program
 % ----------------------------------
 if W.isol==1
 S.J.description     = 'prova puglianello solute transport';
@@ -371,10 +371,11 @@ S.CDE.Topt          = 25;
 
 % ***Freundlich Isotherm***
 % The Freundlich isotherm is here used on NX, where X can be 'H' for
-% AMMONIA (NH4) or 'O' for NITRATE (NO3). Two coefficients must be defined
-% to use Freundlich method: kf1 and kf2 that can be defined below. It is
-% assumed that the isotherm is made by two segments with two different
-% slopes (i.e. kf1 and kf2).
+% AMMONIA (NH4) or 'O' for NITRATE (NO3).
+% Two coefficients must be defined below to use Freundlich method: kf1 and
+% kf2.
+% It is assumed that the isotherm is made by two segments with two
+% different slopes (i.e. kf1 and kf2).
 % 
 % NX.kf1:           Pendenza del primo tratto dell'isoterma di Freundlich.
 %                   [cm3 g-1]
@@ -467,7 +468,6 @@ end
 % stress salino, accoppiato o non allo stress idrico. In presenza di stress
 % salino, occorre far leggere un file di input con i dati di EC misurati
 % per i 100 nodi di calcolo.
-
 if W.iosm==1 && V.ifs>3
 % load DATA
 EC.matrix           = load(fullfile(proj.ipath,'EC_data.txt'));
@@ -475,7 +475,6 @@ EC.z                = EC.matrix(2:end,1);
 EC.t                = EC.matrix(1,2:end);
 EC.data             = EC.matrix(2:end,2:end);
 end
-
 %%   MONTECARLO
 % ----------------------------------
 % to A.Basile:  Why not to consider the in-between combination of
@@ -490,7 +489,10 @@ if W.MTCL==1
 %                   zero (e.g. [22,22,0] means that the third layer will
 %                   not be considered as stochastic, but the configuration
 %                   given in W is taken for that soil layer).
-M.nlay              = [22, 33, 11];
+%                   -------------------------------------------------------
+% #SoilLay#             1        2       3      4       5       6       7
+%                   -------------------------------------------------------
+M.nlay              = [ 22,     33,     11];
 
 % combinatorial:    A Montecarlo combinatorial calculus is performed to set
 %                   all the possible combinations of each soil layer

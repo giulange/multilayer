@@ -1,4 +1,4 @@
-function Pnodes = multilayer_soilgrid(numnodes,zint, Pnodes)
+function Pnodes = multilayer_soilgrid(numnodes,zint)
 % Pnodes = multilayer_soilgrid(numnodes,zint, P.nodes)
 
 % SUBSTITUTIONS:
@@ -15,12 +15,12 @@ function Pnodes = multilayer_soilgrid(numnodes,zint, Pnodes)
 nlay                        = length(zint);
 zdepth                      = zint - [0,zint(1:end-1)];
 %% initialization
-% Pnodes.num                  = NaN( nlay+0,    1 );
-% Pnodes.thickness            = NaN( nlay+0,    1 );
-% Pnodes.cumsum               = NaN( nlay+1,    1 );
-% Pnodes.soillayer            = NaN( numnodes+1,1 );
-% Pnodes.z                    = NaN( numnodes+1,1 );
-% Pnodes.dz                   = NaN( numnodes+1,1 );
+Pnodes.num                  = NaN( nlay+0,    1 );
+Pnodes.thickness            = NaN( nlay+0,    1 );
+Pnodes.cumsum               = NaN( nlay+1,    1 );
+Pnodes.soillayer            = NaN( numnodes+1,1 );
+Pnodes.z                    = NaN( numnodes+1,1 );
+Pnodes.dz                   = NaN( numnodes+1,1 );
 %% main
 % Mono- and Multi- stratum:
 for ii=1:nlay

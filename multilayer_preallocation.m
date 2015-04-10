@@ -1,13 +1,13 @@
 %% pre-allocate all variables required within each Monte Carlo Simulation
 
 % -GEOMETRY
-% --nodes
-P.nodes.num                     = NaN( W.nlay+0,    1 );
-P.nodes.thickness               = NaN( W.nlay+0,    1 );
-P.nodes.cumsum                  = NaN( W.nlay+1,    1 );
-P.nodes.soillayer               = NaN( P.nz+1,      1 );
-P.nodes.z                       = NaN( P.nz+1,      1 );
-P.nodes.dz                      = NaN( P.nz+1,      1 );
+% % --nodes
+% P.nodes.num                     = NaN( W.nlay+0,    1 );
+% P.nodes.thickness               = NaN( W.nlay+0,    1 );
+% P.nodes.cumsum                  = NaN( W.nlay+1,    1 );
+% P.nodes.soillayer               = NaN( P.nz+1,      1 );
+% P.nodes.z                       = NaN( P.nz+1,      1 );
+% P.nodes.dz                      = NaN( P.nz+1,      1 );
 % --soil-grid
 P.sh.dap                        = NaN(P.nz,1);
 P.sh.tetas                      = NaN(P.nz,1);

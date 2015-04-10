@@ -152,8 +152,8 @@ for sl=1:2
     fluxout             = P.flux(2);
     C1top               = P.Cinput(sl);
     C1bot               = C1(2,sl);
-    lambdaup            = (S.lambda(1)+S.lambda(1))/2; % = S.lambda(1);
-    lambdalow           = (S.lambda(1)+S.lambda(2))/2;
+    lambdaup            = (P.CDElambda(1)+P.CDElambda(1))/2; % = P.CDElambda(1);
+    lambdalow           = (P.CDElambda(1)+P.CDElambda(2))/2;
     
     while jj<=W.nlay
         for i=P.nodes.cumsum(jj)+1:P.nodes.cumsum(jj+1)
@@ -164,10 +164,10 @@ for sl=1:2
 %             if i == P.nodes.cumsum(jj+1)
 %                 % WHY we need to define them here! We already loaded them
 %                 % in config!!
-%                 S.lambda(i+1)   = S.lambda(i); % USED but I modified at the bottom of file. 
-%                 S.Knitr(i+1)    = S.Knitr(i);  % UNUSED at nz+1
-%                 S.Kimmob(i+1)   = S.Kimmob(i); % UNUSED at nz+1
-%                 S.Kdenitr(i+1)  = S.Kdenitr(i);% UNUSED at nz+1
+%                 P.CDElambda(i+1)  = P.CDElambda(i); % USED but I modified at the bottom of file. 
+%                 P.CDEKnitr(i+1)   = P.CDEKnitr(i);  % UNUSED at nz+1
+%                 P.CDEKimmob(i+1)  = P.CDEKimmob(i); % UNUSED at nz+1
+%                 P.CDEKdenitr(i+1) = P.CDEKdenitr(i);% UNUSED at nz+1
 %             end
 
             % MORE GENERAL VERSION:
@@ -194,9 +194,9 @@ for sl=1:2
             else
                 teta_ratio	= P.sh.tetafc(i)/P.teta(i);
             end
-            C2_ntf_lq       = S.Knitr(i)*1.07^ ...
+            C2_ntf_lq       = P.CDEKnitr(i)*1.07^ ...
               (B.Tstar(P.kk)-S.Topt)*teta_ratio*C1(i,1)*P.teta(i);
-            C2_ntf_sd       = S.Knitr(i)*1.07^ ...
+            C2_ntf_sd       = P.CDEKnitr(i)*1.07^ ...
               (B.Tstar(P.kk)-S.Topt)*teta_ratio*P.sh.dap(i)*S1(i,1);
             % attingimento selettivo:
             C2_sink         = S.NX.Kr(sl)*P.sink(i)*C1(i,sl);
@@ -206,7 +206,7 @@ for sl=1:2
                 SsSk        = -C2_ntf_lq-C2_ntf_sd-C2_sink+CNH4_pn(i);
             elseif sl==2
                 % Sm(z,t), Eq. 16
-                C2_immb     = S.Kimmob(i)*1.05^ ...
+                C2_immb     = P.CDEKimmob(i)*1.05^ ...
                   (B.Tstar(P.kk)-S.Topt)*teta_ratio*C1(i,2)*P.teta(i);
                 
                 % teta_tsh: the threshold water content for de-nitrification:
@@ -214,7 +214,7 @@ for sl=1:2
                                      -P.teta(i))/P.sh.tetas(i)*P.sh.tetafc(i);
                 if P.teta(i)>teta_tsh
                     % Sd(z,t), Eq. 17
-                    C2_dntf	= S.Kdenitr(i)*1.07^(B.Tstar(P.kk)- ...
+                    C2_dntf	= P.CDEKdenitr(i)*1.07^(B.Tstar(P.kk)- ...
                                       S.Topt)*(P.teta(i)-teta_tsh) / ...
                                       (P.sh.tetafc(i)-teta_tsh)*C1(i,2)*P.teta(i);
                 else
@@ -264,14 +264,14 @@ for sl=1:2
                     fluxout = fluxbot;
                     C1top   = C1(i+0,sl);           % i-1
                     C1bot   = C1(i+1,sl);           % i+0        **particular case!
-                    lambdaup= (S.lambda(i+1)+S.lambda(i+0))/2;
-                    lambdalow= (S.lambda(i+1)+S.lambda(i+1))/2;% **particular case!
+                    lambdaup= (P.CDElambda(i+1)+P.CDElambda(i+0))/2;
+                    lambdalow=(P.CDElambda(i+1)+P.CDElambda(i+1))/2;% **particular case!
                 otherwise % OTHERS NODES
                     fluxout = P.flux(i+2);          % i+1
                     C1top   = C1(i+0,sl);           % i-1
                     C1bot   = C1(i+2,sl);           % i+1
-                    lambdaup= (S.lambda(i+1)+S.lambda(i+0))/2;
-                    lambdalow= (S.lambda(i+1)+S.lambda(i+2))/2;
+                    lambdaup= (P.CDElambda(i+1)+P.CDElambda(i+0))/2;
+                    lambdalow=(P.CDElambda(i+1)+P.CDElambda(i+2))/2;
             end
             %--------------------------------------------------------------
         end
