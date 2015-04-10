@@ -19,13 +19,25 @@ elseif length(dir(proj.opath))-2>0
     if STOP, error('You decided to stop the program'), end
     clear ListOfFiles ii STOP
 end
+%% Simulation duration
+if strcmp( W.timestep,'day')
+    W.tmax = datenum( W.edate ) - datenum( W.sdate );
+elseif strcmp( W.timestep,'hour')
+    error('The hour time step for simulation not yet implemented!')
+else
+    err_msg_wrong_par_set( W.tmax )
+end
+%% Read I_depth.txt -- to be implemented
+
+%% Read I_time.txt -- to be implemented
+
 %% n-iterations
 % Nj:                        Number of iterations as a function 
 %                               f(W.tmax,W.dtin,W.dtmax) according to the
 %                               W.Nj_shp shape parameter.
 P.Nj                        = round( W.tmax / (10^(W.Nj_shp + ...
                                   mean([log10(W.dtin),log10(W.dtmax)]))) );
-%% soil geometry
+%% n-nodes
 W.sg.sublayers_names        = {'SoilLay','SubLay','hSubLay','hNode','nNodes'};
 if W.sg.type == 1
     P.nz = W.sg.regular(1);
@@ -41,6 +53,37 @@ if W.dtin<W.dtmin
     warning('W.dtin=%f < W.dtmin=%f',W.dtin,W.dtmin)
     W.dtin = W.dtmin;
 end
+%% P.tprint (print steps)
+if isempty(W.tp{1})
+    % read from I_time.txt file.
+    % P.tprint = VAR(:,col);
+else
+    if size(W.tp,1)==1
+        P.tprint        = 1:W.tp{1,2}:W.tmax;
+    else
+        P.tprint        = [];
+        for ii = 1:size(W.tp,1)-1
+            P.tprint    = [P.tprint, datenum( W.tp{ii,1},'yyyy-mm-dd,hh' )+W.tp{ii,2}:W.tp{ii,2}:datenum( W.tp{ii+1,1},'yyyy-mm-dd,hh' )];
+        end
+        P.tprint        = [P.tprint, datenum( W.tp{end,1},'yyyy-mm-dd,hh' )+W.tp{end,2}:W.tp{end,2}:datenum( W.edate )];
+        if P.tprint(end)~=datenum(W.edate)
+            P.tprint(end+1) = datenum(W.edate);
+        end
+        P.tprint        = P.tprint - datenum(W.sdate);
+    end
+end
+%% P.hin
+if isempty(W.hin)
+    % read from I_depth.txt file.
+    % P.hin = VAR(:,col);
+else
+    if size(W.hin,1)==1
+        P.hin        = repmat(W.hin(1,2),P.nz,1);
+    else
+
+    end
+end
+%% ?
 %% condizioni al contorno superiore e inferiore
 % if (W.itopvar==0 && W.ibotvar==0) || (W.itopvar==1 && W.ibotvar==1)
 %     error('W.itopvar=%d cannot be equal to W.ibotvar=%d',W.itopvar,W.ibotvar)

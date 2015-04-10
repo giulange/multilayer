@@ -44,15 +44,6 @@ for mm=1:M.nvp
 %     P.TT                = 0;
     P.rnf               = 0;
     P.ktec              = 1;  
-%% Calcolo ET potenziale con E + T -- è già scritto dentro while su P.kk
-% ETp0, Ep and Tp and Droot will be defined again later at P.kk=1:
-%     if and(W.itopvar==1,W.iveg==1)
-%         P.ETp0          = V.Kc(1)*V.ETr(1);
-%         % legge di Beer
-%         P.Ep            = P.ETp0*exp(-V.extf*V.LAI(1));
-%         P.Tp            = P.ETp0-P.Ep;
-%         P.Droot         = V.Droot(1);
-%     end
 %% Hydraulic mapping :: soil layers --> soil grid nodes
     % Retention & conductivity at soil grid nodes from info at soil layers:
     for inode = 1:P.nz
@@ -80,24 +71,24 @@ for mm=1:M.nvp
     while P.time(P.j)<W.tmax
 %         waitbar( P.j / P.Nj )
 %% controllo sui tempi di stampa -- check:: position within while? correct?
-        if abs(P.time(P.j)-W.tp(P.pp))<0.0001
+        if abs(P.time(P.j)-P.tprint(P.pp))<0.0001
             P.TT                = 1;
-        elseif P.time(P.j)>W.tp(P.pp)
-            P.time(P.j)         = W.tp(P.pp);
-            W.dt                = W.tp(P.pp)-P.time(P.j-1);
+        elseif P.time(P.j)>P.tprint(P.pp)
+            P.time(P.j)         = P.tprint(P.pp);
+            W.dt                = P.tprint(P.pp)-P.time(P.j-1);
             P.TT                = 1;
         else
             P.TT                = 0;
         end
 %% adattamento T sim al T stampa -- check:: position within while? correct?
-        if P.time(P.j) >= W.tp(P.pp)
+        if P.time(P.j) >= P.tprint(P.pp)
             P.TT                = 1;
-            P.time(P.j)         = W.tp(P.pp);
-            W.dt                = W.tp(P.pp);
-        elseif W.tp(P.pp)-P.time(P.j) < W.dtmin && W.tp(P.pp)-P.time(P.j)>=0
+            P.time(P.j)         = P.tprint(P.pp);
+            W.dt                = P.tprint(P.pp);
+        elseif P.tprint(P.pp)-P.time(P.j) < W.dtmin && P.tprint(P.pp)-P.time(P.j)>=0
             P.TT                = 1;
-            P.time(P.j)         = W.tp(P.pp);
-            W.dt                = W.tp(P.pp);
+            P.time(P.j)         = P.tprint(P.pp);
+            W.dt                = P.tprint(P.pp);
         end
 %% controllo sui flussi al contorno superiore -- ATTENTION: dovrebbe stare in water transport (solve tq!)
 if W.itopvar==1 && P.L==0 % L ==> tutto ok nel j precedente
@@ -139,7 +130,7 @@ end
                 W.dt            = P.tq-P.time(P.j-1);
                 P.T             = 1;
                 P.L             = 0;
-            else
+            else % which condition(s)?
                 P.T             = 0;
                 P.L             = 1;
             end
@@ -220,10 +211,10 @@ end
 %   Se invece e' minore allora bisogna di nuovo verificare se il nuovo
 %   B.top.hqstar sia maggiore di P.fluxsurf_max, ed allora occorre cambiare
 %   W.itbc da 1 a 0.
-%   Ovviamente questa verifica va fatta solo se si � entrati in W.itbc=1
+%   Ovviamente questa verifica va fatta solo se si è entrati in W.itbc=1
 %   partendo da W.itbc=0.
             if P.T==1               % flag counter top-bound
-                P.kk=P.kk+1;        % contatore top-bound & Ctop-bund  
+                P.kk=P.kk+1;        % contatore top-bound & Ctop-bound  
                  if W.itopvar==1    % che vuol dire?
                      % se il flusso al nuovo kk > kk-1 ho ancora runoff
                      if and(P.rnf==1,abs(B.top.hqstar(P.kk))<abs(B.top.hqstar(P.kk-1)))

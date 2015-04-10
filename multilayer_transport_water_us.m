@@ -14,7 +14,7 @@
 %% lettura h iniziali o aggiornamento h -- check at the end!
 % lettura h iniziali e aggiornamento h
 if P.j==1
-    P.h1                    = W.hin;
+    P.h1                    = P.hin;
 elseif P.j>P.jstar  % if simulation runs normally
     P.h1                    = P.h2; % --> not yet initialized!!
 elseif P.j==P.jstar % if simulation at previous step didn't go fine!

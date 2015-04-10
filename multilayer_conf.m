@@ -15,6 +15,44 @@ proj.opath          = '/home/giuliano/git/multilayer/output/';
 %%   WATER INPUT
 % ----------------------------------
 
+% *SIMULATION & TIME*
+% sdate:            Start date of simulation run. YYYY-MM-DD
+W.sdate             =   '2013-01-01';       % 0
+% edate:            End   date of simulation run. YYYY-MM-DD
+W.edate             =   '2013-05-01';       % N
+% timestep          Time step that can be used for input (meteo? only
+%                   meteo?) data. 
+%                   It can be day or hour. The total number of timesteps is
+%                   given by:
+%                       N = length( W.sdate:W.timestep:W.edate );
+%                   The N number can be used as the maximum threshold with
+%                   which define W.tp (and maybe other variables?).
+%                   At this moment only day can be used (a future version
+%                   will be available on a more detailed time step).
+W.timestep          = 'day';
+
+% tp:               Time steps at which print results. A value represents a
+%                   fraction of day (e.g. 0.5 is half a day, and so on).
+%                   The time step resolution to build the final time prints
+%                   is the hour.
+%                   -----------------------------------
+%                       Time [day]          W.tp [-]
+%                       [sdate,edate]       [0,...,N]
+W.tp                = {
+                        '2013-01-01,00'     1/24
+                        '2013-01-02,00'     1.00
+                      };
+%                   -----------------------------------
+
+% hin:              Initial condition for soil potential at any depth.
+%                   -----------------------------------
+%                       Depth [cm]      W.hin [?]
+%                       [0,botlim]      [-100,+100]
+W.hin               = [  
+                        0               -100
+                      ];
+%                   -----------------------------------
+
 % MTCL:                 Montecarlo simulation
 %                           0:  no
 %                           1:  yes
@@ -33,12 +71,14 @@ W.ads               = 1;
 W.iveg              = 1;
 W.dtin              = 0.00001;
 
-% SOIL GRID GEOMETRY:
+% *SOIL GRID GEOMETRY*
 % nlay:                 Number of soil layers.
 W.nlay              = 3;
-% zint:                 Soil layer bottom boundaries.
-W.zint              = [25, 60, 300];
-
+% zint:                 Soil layer bottom boundaries. The bottom depth of
+%                       the lowest layer is the "botlim" value used to
+%                       define the bottom Z-limit of all depth-dependent
+%                       variables.
+W.zint              = [25, 60, 300]; % e.g. botlim = 300 [cm]
 % -------------------------------------------------------------------------
 % VERTICAL DISCRETIZATION: [W.sg] --> sg='soil geometry'
 % -------------------------------------------------------------------------
@@ -99,9 +139,10 @@ W.sg.regular        = 100;
 %                                   the sublayer.
 %                        -nNodes:   The number of regularly spaced nodes
 %                                   that discretise the sublayer.
-% 
+%                     ---------------------------------------------------
 %                       %#  SoilLay SubLay hSubLay   hNode  nNodes #%
 %                              [-]   [-]    [cm]     [cm]    [-]
+%                     ---------------------------------------------------
 W.sg.sublayers      = [         1     1      5.0      1.0     5  
                                 1     2     15.0      3.0     5
                                 1     3      5.0      1.0     5 % 25 cm
@@ -113,6 +154,8 @@ W.sg.sublayers      = [         1     1      5.0      1.0     5
                                 3     9    200.0     40.0     5
                                 3    10     20.0      5.0     4 % 240 cm
                        ];                  % TOT=               % 300 cm
+%                     ---------------------------------------------------
+
 % anotherkind:          Whatever we want to implement (we should check what
 %                       HYDRUS makes as a suggestion).
 W.sg.anotherkind    = [];
@@ -122,30 +165,35 @@ W.sg.anotherkind    = [];
 % -------------------------------------------------------------------------
 % SOIL GRID NODES WITH HYDRAULIC CHARACTERISTICS:
 % -------------------------------------------------------------------------
-% W.crc.? --> curva ritenzione/conducibilità: es. W.crc.dap, W.crc.tetas, ecc. 
-W.dap               = [1.1, 1.1, 1.1];
-W.tetas             = [0.340, 0.310, 0.300];
-W.tetar             = [0.000, 0.000, 0.000];
-W.alfrs             = [0.000, 0.000, 0.000];
-W.fi                = [0.000, 0.000, 0.000];
-W.alfvg             = [0.120, 0.140, 0.150];
-W.en                = [1.120, 1.140, 1.250];
-W.alfvg2            = [0.0000, 0.0000, 0.0000];
-W.en2               = [0.000, 0.000, 0.000];
-W.ifr               = [1, 1, 1];
-W.hfc               = -333; % --> check with Antonio!!
-W.k0                = [50.00, 20.00, 20.00];
-W.k0macr            = [0.000, 0.000, 0.000];
-W.bita              = [0.5, 0.5, 0.5];
-W.bita2             = [9999, 9999, 9999];
-W.ifc               = [1, 1, 1]; 
+% W.crc.? -->   Curva ritenzione/conducibilità: es. W.crc.dap, W.crc.tetas,
+%               ecc.
+%                   -------------------------------------------------------
+% #SoilLay#             1        2       3      4       5       6       7
+%                   -------------------------------------------------------
+W.dap               = [ 1.1,     1.1,    1.1     ];
+W.tetas             = [ 0.340,   0.310,  0.300   ];
+W.tetar             = [ 0.000,   0.000,  0.000   ];
+W.alfrs             = [ 0.000,   0.000,  0.000   ];
+W.fi                = [ 0.000,   0.000,  0.000   ];
+W.alfvg             = [ 0.120,   0.140,  0.150   ];
+W.en                = [ 1.120,   1.140,  1.250   ];
+W.alfvg2            = [ 0.0000,  0.0000, 0.0000  ];
+W.en2               = [ 0.000,   0.000,  0.000   ];
+W.ifr               = [ 1,       1,      1       ];
+W.k0                = [ 50.00,   20.00,  20.00   ];
+W.k0macr            = [ 0.000,   0.000,  0.000   ];
+W.bita              = [ 0.5,     0.5,    0.5     ];
+W.bita2             = [ 9999,    9999,   9999    ];
+W.ifc               = [ 1,       1,      1       ];
+%                   -------------------------------------------------------
+
 % ??
+W.hfc               = -333; % --> check with Antonio!!
 W.vpr               = 0.5;
 W.tetal             = 0.0002;
 W.bital             = 15.0;
 W.hsurfmax          = 0.0;
 % -------------------------------------------------------------------------
-
 
 W.itopvar           = 1;
 W.ibotvar           = 0;
@@ -181,8 +229,8 @@ W.inhin             = 0;
 % W.inhin     = 1;
 % W.hin       = load( fullfile(proj.ipath,'initial_inp.txt') )
 
-W.tmax              = 120;
-W.ntp               = 131;
+% W.tmax              = 120;
+% W.ntp               = 131;
 %%   TOP BOUNDARY INPUT
 % ----------------------------------
 B.top.description   = 'MARWA CORRECTED NOVEMBRE 2011';%--> 'a discretization...'
@@ -264,22 +312,153 @@ if W.isol==1
 S.J.description     = 'prova puglianello solute transport';
 S.J.decad           = 0;
 S.J.retard          = 0;
+
+% tetasst:          ??
+%                   --------------------------------------
+%                       Depth [cm]      S.J.tetasst [??]
+%                       [0,botlim]      [0.000,+10.000]
+S.J.tetasst         = [
+                        0               0.500
+                      ];
+%                   --------------------------------------
+
+% sigma:            ??
+%                   --------------------------------------
+%                       Depth [cm]      S.J.tetasst [??]
+%                       [0,botlim]      [0.000,+10.000]
+S.J.sigma           = [
+                        0               0.200
+                      ];
+%                   --------------------------------------
+
+% Rcoeff:           ??
+%                   --------------------------------------
+%                       Depth [cm]      S.J.Rcoeff [-]
+%                       [0,botlim]      [a,b]
+S.J.Rcoeff          = [
+                        0               1.000
+                      ];
+%                   --------------------------------------
+
+% Dcoeff:           ??
+%                   --------------------------------------
+%                       Depth [cm]      S.J.Dcoeff [-]
+%                       [0,botlim]      [a,b]
+S.J.Dcoeff          = [
+                        0               0.000
+                      ];
+%                   --------------------------------------
+
 end
 %%   SOLUTE CDE INPUT
 % ----------------------------------
 if W.isol==2
 S.CDE.description   = 'MARWA CORRECTED';
+
+% tCinput:          Tempo di immissione del soluto.
+%                   [??]
 S.CDE.tCinput       = 0.000;
+
+% tCinput_end:      ??
 S.CDE.tCinput_end   = 0.500;
+
+% Cinput:           Input concentration.
+%                   [g cm-3]
 S.CDE.Cinput        = 0.040;
-% Topt:                 The optimum temperature (°C) for the XXX process
+% Topt:             The optimum temperature for the XXX process
+%                   [°C]
 S.CDE.Topt          = 25;
-% NX:                   Where X = {'H':NH4, 'O':NO3}
-S.CDE.NX.Kf1        = [0.100, 0.000]; % ['NH','NO']
+
+% ***Freundlich Isotherm***
+% The Freundlich isotherm is here used on NX, where X can be 'H' for
+% AMMONIA (NH4) or 'O' for NITRATE (NO3). Two coefficients must be defined
+% to use Freundlich method: kf1 and kf2 that can be defined below. It is
+% assumed that the isotherm is made by two segments with two different
+% slopes (i.e. kf1 and kf2).
+% 
+% NX.kf1:           Pendenza del primo tratto dell'isoterma di Freundlich.
+%                   [cm3 g-1]
+%                      'NH'   'NO'
+S.CDE.NX.Kf1        = [0.100, 0.000];
+% 
+% NX.kf2:           Pendenza del secondo tratto dell'isoterma di
+%                   Freundlich.
+%                   [cm3 g-1]
+%                      'NH'   'NO'
 S.CDE.NX.Kf2        = [1.000, 1.000];
+
+% NX.Kr:            Fattore di attingimento radicale.
+%                   [-]
 S.CDE.NX.Kr         = [1.000, 1.000];
+
+
+% Cin.NH:           Initial concentration of AMMONIA, defined at different
+%                   depths.
+%                   --------------------------------------------
+%                       Depth [cm]      S.CDE.Cin.NH [g cm-3]
+%                       [0,botlim]      [0.0000,+10.0000]
+S.CDE.Cin.NH        = [
+                        0               0.0000
+                      ];
+%                   --------------------------------------------
+
+
+% Cin.NO:           Initial concentration of NITRATE, defined at different
+%                   depths.
+%                   --------------------------------------------
+%                       Depth [cm]      S.CDE.Cin.NO [g cm-3]
+%                       [0,botlim]      [0.000,+10.000]
+S.CDE.Cin.NO        = [
+                        0               0.0002
+                        30              0.0000
+                      ];
+%                   --------------------------------------------
+
+
+% lambda:           Dispersivity of??, defined at different depths.
+%                   --------------------------------------------
+%                       Depth [cm]      S.CDE.lambda [cm]
+%                       [0,botlim]      [a,b]
+S.CDE.lambda        = [
+                        0               3.0
+                      ];
+%                   --------------------------------------------
+
+
+% Knitr:            Nitrification coefficient.
+%                   --------------------------------------------
+%                       Depth [cm]      S.CDE.Knitr [-]
+%                       [0,botlim]      [a,b]
+S.CDE.Knitr         = [
+                        0               1.0000
+                        30              0.0100
+                      ];
+%                   --------------------------------------------
+
+
+% Kimmob:           Immobilization coefficient.
+%                   --------------------------------------------
+%                       Depth [cm]      S.CDE.Kimmob [-]
+%                       [0,botlim]      [a,b]
+S.CDE.Kimmob        = [
+                        0               0.0400
+                        30              0.0300
+                      ];
+%                   --------------------------------------------
+
+
+% Kdenitr:          Denitrification coefficient.
+%                   --------------------------------------------
+%                       Depth [cm]      S.CDE.Kdenitr [-]
+%                       [0,botlim]      [a,b]
+S.CDE.Kdenitr       = [
+                        0               0.0400
+                        30              0.0200
+                      ];
+%                   --------------------------------------------
+
 end
-%%   EC DATA
+%%   EC DATA -- modify according to the new definition of depth-dependent variables
 % ----------------------------------
 % 
 % Lettura valori di potenziale osmotico
