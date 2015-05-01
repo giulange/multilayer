@@ -12,7 +12,7 @@ Wzint = [0,Wzint];
 figure(7)
 clf
 whitebg('k')
-% set(gcf, 'OuterPosition',fig_size)
+set(gcf, 'OuterPosition',fig_size)
 hold on
 
 % soil layers limits:
@@ -28,6 +28,7 @@ for ii = 1:length(Wzint)
             'FontSize',16,'Color','white')
     end
 end
+
 % vertical lines of soil profile:
 line([X(1),X(1)],-[Wzint(1),Wzint(end)])
 line([X(2),X(2)],-[Wzint(1),Wzint(end)])

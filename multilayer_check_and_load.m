@@ -1,5 +1,8 @@
 %% define internal pars:
-err_msg_wrong_par_set       = @(PAR) sprintf('This parameter was set in a wrong way: %s', PAR);
+err_msg_wrong_par_set   = @(PAR) sprintf('This parameter was set in a wrong way: %s', PAR);
+len_units_time          = @(ed,sd) (datenum(ed)-datenum(sd)+1)/W.timestep;
+len_units_time_str1     = @(ed,sd) (datenum(ed,'yyyy-mm-dd,hh') - datenum(sd)+1)/W.timestep;
+len_units_time_str2     = @(ed,sd) (datenum(ed) - datenum(sd,'yyyy-mm-dd,hh')+1)/W.timestep;
 %% check dirs
 if ~exist( proj.ipath, 'dir' )
     error('The Project directory does not exist!')
@@ -7,36 +10,46 @@ end
 if ~exist( proj.opath, 'dir' )
     mkdir( proj.opath )
 elseif length(dir(proj.opath))-2>0
-    ListOfFiles = dir(proj.opath);
-    ListOfFiles = {ListOfFiles(3:end).name};
+    ListOfFiles     = dir(proj.opath);
+    ListOfFiles     = {ListOfFiles(3:end).name};
     warning('The output folder\n\t%s\nalready has this %d files:\n', ...
             proj.opath,length(ListOfFiles) )
     for ii=1:length(ListOfFiles)
         fprintf('\t> %s\n',ListOfFiles{ii})
     end
     
-    STOP = input('Type 0 to continue OR 1 to stop execution!\n');
+    STOP            = input('Type 0 to continue OR 1 to stop execution!\n');
     if STOP, error('You decided to stop the program'), end
     clear ListOfFiles ii STOP
 end
-%% Simulation duration
-if strcmp( W.timestep,'day')
-    W.tmax = datenum( W.edate ) - datenum( W.sdate );
-elseif strcmp( W.timestep,'hour')
-    error('The hour time step for simulation not yet implemented!')
-else
-    err_msg_wrong_par_set( W.tmax )
+%% W.tmax -- Simulation duration
+% tmax is adapted according to size of W.timestep !!
+if W.timestep<1/24 || W.timestep>10
+    err_msg_wrong_par_set('W.timestep')
 end
-%% Read I_depth.txt -- to be implemented
-
-%% Read I_time.txt -- to be implemented
-
+% if W.timestep~=1.00
+%     error('A timestep different from "day" for any time-dependent data is not yet implemented!')
+% end
+W.tmax                  = len_units_time( W.edate, W.sdate );
 %% n-iterations
 % Nj:                        Number of iterations as a function 
 %                               f(W.tmax,W.dtin,W.dtmax) according to the
 %                               W.Nj_shp shape parameter.
-P.Nj                        = round( W.tmax / (10^(W.Nj_shp + ...
-                                  mean([log10(W.dtin),log10(W.dtmax)]))) );
+P.Nj                    = round( W.tmax / (10^(W.Nj_shp + ...
+                                  mean([log10(W.dtin),log10(W.dtmax)]) ...
+                               )          )   );
+%% adapt all time-related parameters affected by W.timestep
+W.dtin          = W.dtin/W.timestep;
+W.dtmin         = W.dtmin/W.timestep;
+W.dtmax         = W.dtmax/W.timestep;
+%% Read I_depth.txt -- to be implemented
+%% Read I_time.txt -- to be implemented
+%% adapt climatic data according to W.timestep
+B.top.eto       = reshape(repmat(B.top.eto,1,1/W.timestep)',W.tmax,1);% [mm]
+B.top.radi      = reshape(repmat(B.top.radi,1,1/W.timestep)',W.tmax,1);%[]
+B.top.rain      = reshape(repmat(B.top.rain,1,1/W.timestep)',W.tmax,1);%[mm]
+B.top.tmax      = reshape(repmat(B.top.tmax,1,1/W.timestep)',W.tmax,1);%[C]
+B.top.tmin      = reshape(repmat(B.top.tmin,1,1/W.timestep)',W.tmax,1);%[C]
 %% P.nz & SOIL GRID GEOMETRY
 W.sg.sublayers_names        = {'SoilLay','SubLay','hSubLay','hNode','nNodes'};
 switch W.sg.type
@@ -50,14 +63,17 @@ switch W.sg.type
         % Not yet implemented
         err_msg_wrong_par_set( 'W.sg.type' )
 end
-% plot: (should be optional)
-%     multilayer_soilgrid_graph(P.nodes,W.zint);
+
+% PLOT the soil grid geometry configuration:
+if W.sg.plotme, multilayer_soilgrid_graph(P.nodes,W.zint); end
 %% W.dtin<W.dtmin
 if W.dtin<W.dtmin
     warning('W.dtin=%f < W.dtmin=%f',W.dtin,W.dtmin)
     W.dtin = W.dtmin;
 end
 %% P.tprint (print steps)
+% This is the only time-dependent parameter whose LENGTH is not affected by
+% the valorization of W.timestep, but ony the VALUES are.
 if isempty(W.tp{1})
     % read from I_time.txt file.
     % P.tprint = VAR(:,col);
@@ -73,7 +89,67 @@ else
         if P.tprint(end)~=datenum(W.edate)
             P.tprint(end+1) = datenum(W.edate);
         end
-        P.tprint        = P.tprint - datenum(W.sdate);
+        P.tprint        = (P.tprint - datenum(W.sdate))/W.timestep;
+    end
+end
+%% V.Kc (reduction coeff. of potential evapotraspiration)
+if isempty(V.Kc{1})
+    err_msg_wrong_par_set('V.Kc')
+else
+    if size(V.Kc,1)==1
+        P.Kc            = repmat(V.Kc{1,2},1,W.tmax);
+    else
+        P.Kc            = [];
+        for ii = 1:size(V.Kc,1)-1
+            LEN         = len_units_time( datenum( V.Kc{ii+1,1},'yyyy-mm-dd,hh' ),datenum( V.Kc{ii,1},'yyyy-mm-dd,hh' ) );
+            P.Kc        = [P.Kc, repmat(V.Kc{ii,2},1, LEN )];
+        end
+        LEN             = len_units_time( datenum( W.edate ), datenum( V.Kc{end,1},'yyyy-mm-dd,hh' ) );
+        P.Kc            = [P.Kc, repmat(V.Kc{end,2},1, LEN )];
+    end
+end
+%% V.Ke (reduction coeff. of potential soil evaporation)
+if isempty(V.Ke{1})
+    % calculate following FAO paper 56, Chapter 7
+    err_msg_wrong_par_set('V.Ke')
+else
+    if size(V.Ke,1)==1
+        P.Ke            = repmat(V.Ke{1,2},1,W.tmax);
+    else
+        P.Ke            = [];
+        for ii = 1:size(V.Ke,1)-1
+            LEN         = len_units_time( datenum( V.Ke{ii+1,1},'yyyy-mm-dd,hh' ),datenum( V.Ke{ii,1},'yyyy-mm-dd,hh' ) );
+            P.Ke        = [P.Ke, repmat(V.Ke{ii,2},1, LEN )];
+        end
+        LEN             = len_units_time( datenum( W.edate ), datenum( V.Ke{end,1},'yyyy-mm-dd,hh' ) );
+        P.Ke            = [P.Ke, repmat(V.Ke{end,2},1, LEN )];
+    end
+end
+%% B.bot.hqstar (flux/potential at bottom boundary)
+if isempty(V.Ke{1})
+    % calculate following FAO paper 56, Chapter 7
+    err_msg_wrong_par_set('B.bot.hqstars')
+else
+    if size(B.bot.hqstar,1)==1
+        P.bothq         = repmat(B.bot.hqstar{1,2},1,W.tmax);
+    else
+        P.bothq         = [];
+        for ii = 1:size(B.bot.hqstar,1)-1
+            LEN         = len_units_time( datenum( B.bot.hqstar{ii+1,1},'yyyy-mm-dd,hh' ),datenum( B.bot.hqstar{ii,1},'yyyy-mm-dd,hh' ) );
+            P.bothq     = [P.bothq, repmat(B.bot.hqstar{ii,2},1, LEN )];
+        end
+        LEN             = len_units_time( datenum( W.edate ), datenum( B.bot.hqstar{end,1},'yyyy-mm-dd,hh' ) );
+        P.bothq         = [P.bothq, repmat(B.bot.hqstar{end,2},1, LEN )];
+    end
+end
+%% S.compounds
+if S.isfert
+    P.compounds = NaN;
+else
+    P.compounds = zeros( size(S.compounds,2)-1, W.tmax );
+    for ii = 1:size(S.compounds,1)
+        t_elem = len_units_time_str1( S.compounds{ii,1}, W.sdate );
+        P.compounds(:,t_elem) = cell2mat(S.compounds(ii,2:end));
     end
 end
 %% P.hin
@@ -94,6 +170,26 @@ P.CDEKdenitr = multilayer_sub_valorization_depth( S.CDE.Kdenitr, P.nz, P.nodes.z
 % if (W.itopvar==0 && W.ibotvar==0) || (W.itopvar==1 && W.ibotvar==1)
 %     error('W.itopvar=%d cannot be equal to W.ibotvar=%d',W.itopvar,W.ibotvar)
 % end
+%% hqstar -- flux/potential at top boundary
+if W.itbc==0
+    if ~B.top.isirri
+        B.top.irri  = 0;
+    end
+
+    B.top.hqstar    = -(B.top.rain) -(B.top.irri);
+end
+%% itopvar -- it's set here and not in conf anymore
+% itopvar:          Flag to set top boudary conditions:
+%                       *0  --> fixed
+%                               The value used is that of hsurf/qsurf
+%                               (B.top.hqstar is ignored).
+%                       *1  --> variable
+%                               B.top.hqstar is used (hsurf/qsurf ignored).
+if sum(abs(diff(B.top.hqstar))) > 0
+    W.itopvar       = 1;% variable  top boudary condition
+else
+    W.itopvar       = 0;% fixed     top boudary condition
+end
 %% trasporto soluti
 switch W.isol
     case 0
@@ -101,7 +197,7 @@ switch W.isol
 
     case 1
         if ~W.iCtopvar==0, error('Something wrong!'), end
-        
+
     case 2
         if ~W.iCtopvar==1, error('Something wrong!'), end
         %Con questo controllo si assume che il primo strato del profilo
@@ -109,15 +205,12 @@ switch W.isol
         if and(B.Ctop.dL<W.zint(2),B.Ctop.dL>W.zint(2)) %# --> never TRUE!!!
             error('check B.Ctop.dL-W.zint(2)')
         end
+
 end
 %% vegetazione
 if ~W.iveg==1, V = NaN; end
-%% controllo congruenza W.itopvar, W.iCtopvar, W.iveg)
-if or(W.iveg==1,(and(W.isol==2,W.iCtopvar==1)))
-    if W.itopvar==0
-       error('check (W.itopvar, W.iCtopvar, W.iveg)=1')
-    end
-end
+%% TEMP???????
+B.Ctop.Tstar        = (B.top.tmax+B.top.tmin)/2;
 %% montecarlo
 
 if W.MTCL==0
@@ -226,4 +319,4 @@ end
 %% ...something else?
 %% include checks on EC (in particular EC.matrix!!)
 %% end
-clear err_msg_wrong_par_set
+clear err_msg_wrong_par_set len_units_time ii LEN

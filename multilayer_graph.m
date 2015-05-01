@@ -71,15 +71,16 @@ Csolute = squeeze( O.C2(:,1:P.jstar,1,sl) );
 % Csolute = log(Csolute +0.0001);
 
 mima = minmax( Csolute(:)' );
-% cmap = colormap(jet(128));
+cmap = colormap(jet(256)); % hsv, cool, jet
 % caxis( mima )
 hold on
 colorbar
 for tj = 1:P.jstar
     title( {'{\fontsize{16}\color{yellow}NO_3^{-}} \fontsize{13}\color{green}', ...
         sprintf('Timestep: %4d',tj)} )
-    Z = repmat( Csolute(:,tj), 1, 2);
+    Z = repmat( log(Csolute(:,tj)), 1, 2);
+%     Z = repmat( Csolute(:,tj), 1, 2);
     pcolor(X,Y,Z)
-    pause(0.5)
+    pause(0.2)
 end
 hold off

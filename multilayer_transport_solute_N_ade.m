@@ -24,7 +24,7 @@ function [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf
 %   Remember that sl accounts for the type of solute:
 %       sl=1    --> NH_FR
 %       sl=2    --> NO_FR
-%   while P.kk accounts for Ctopboundary input (see B).
+%   while P.tidx accounts for Ctopboundary input (see B).
 % 
 % 
 % INPUTS
@@ -54,10 +54,21 @@ C2out                   = NaN(P.nz,2);
 if W.ads==1
     S1(:,1)             = S.NX.Kf1(1)*C1(:,1).^S.NX.Kf2(1);
     S1(:,2)             = S.NX.Kf1(2)*C1(:,2).^S.NX.Kf2(2);
+else
+    error('Wrong setting of W.ads=0!!')
+    S1(:,1)             = 0;
+    S1(:,2)             = 0;
 end
-%% ?? define cell / delete cell ??
+%% ?? correct this cell ??
+if and(W.isol==2,W.iCtopvar==1)
+    % fertigation(NH4):
+    P.Cinput(1)     = P.compounds(6,P.tidx);
+    % fertigation(NO3):
+    P.Cinput(2)     = P.compounds(7,P.tidx);
+end
+
 % ?? aggiustare su (sl) ??
-if W.iCtopvar==0
+if W.iCtopvar==0 % DELETE !!! understand how... similar to itopvar!!
     if and(P.time(P.j)>=S.tCinput,P.CC==0)
         P.Cinput        = S.Cinput;
         if P.time(P.j)>=S.tCinput_end
@@ -78,11 +89,11 @@ end
 %     idL                 = B.dL/P.nodes.dz(1) +1; % <-- viene decimale, corretto??
 idL                     = sum(P.nodes.z < B.dL);
 
-for i=1:P.kk
-    tm                  = P.time(P.j) - B.tqstar(i);
-
-%     CNH4_UR_CUM(i) = B.Cstar.UR(i)*(1-exp(-B.KhUR*tm));
-%     CNH3_UR_CUM(i) = B.Cstar.UR(i)*(1-exp(-B.KvUR*tm));      
+for i=1:P.tidx% P.kk
+%     tm                  = P.time(P.j) - B.tqstar(i); % check with Antonio
+    tm                  = P.time(P.j) - floor(P.time(P.j)); % check with Antonio
+%     CNH4_UR_CUM(i) = P.compounds(1,i)*(1-exp(-B.KhUR*tm));
+%     CNH3_UR_CUM(i) = P.compounds(1,i)*(1-exp(-B.KvUR*tm));      
 
     
     % Calcolo del fattore di riduzione del coefficiente di nitrificazione
@@ -100,31 +111,31 @@ for i=1:P.kk
     Fmw                 = Fmw / idL;
 
     % PERCHE' SCRIVO IN B?? dovrei usare una variabile temporanea!!
-    B.KmORG_rp          = 5.6*10^12 * exp(-9800/(B.Tstar(P.kk)+273))*Fmw;
-    B.KmORG_sw          = 4.0*10^9  * exp(-8400/(B.Tstar(P.kk)+273))*Fmw;
+    B.KmORG_rp          = 5.6*10^12 * exp(-9800/(B.Tstar(P.tidx)+273))*Fmw;
+    B.KmORG_sw          = 4.0*10^9  * exp(-8400/(B.Tstar(P.tidx)+273))*Fmw;
 
     % qui applica il decadimento (asintotico, quanto viene prodotto):
-    CNH4_UR             = CNH4_UR       + B.Cstar.UR(i)*B.KhUR*exp(-B.KhUR*tm);
+    CNH4_UR             = CNH4_UR       + P.compounds(1,i)*B.KhUR*exp(-B.KhUR*tm);
     % NH3 contribuisce per lo più nel momento della
     % somministrazione (per cui dopo non fai la sum):
-    CNH3_UR             = CNH3_UR       + B.Cstar.UR(i)*B.KvUR*exp(-B.KvUR*tm);
-    CNH4_ORG_rp         = CNH4_ORG_rp   + B.Cstar.ORG.rp(i)*B.KmORG_rp*exp(-B.KmORG_rp*tm);
-    CNH4_ORG_sw         = CNH4_ORG_sw   + B.Cstar.ORG.sw(i)*B.KmORG_sw*exp(-B.KmORG_sw*tm);
+    CNH3_UR             = CNH3_UR       + P.compounds(1,i)*B.KvUR*exp(-B.KvUR*tm);
+    CNH4_ORG_rp         = CNH4_ORG_rp   + P.compounds(2,i)*B.KmORG_rp*exp(-B.KmORG_rp*tm);
+    CNH4_ORG_sw         = CNH4_ORG_sw   + P.compounds(3,i)*B.KmORG_sw*exp(-B.KmORG_sw*tm);
 end
 
-% Non si moltiplica per W.dt perchè dalla derivata calcolata al for
+% Non si moltiplica per P.dt perchè dalla derivata calcolata al for
 % precedente si ottiene il CNH4 prodotto per unità di tempo che è quello
 % che deve entrare nella equazione ADE.
 
 % L'apporto della forma solida NH4 ed NO3 dura per l'intero periodo
-% P.kk:P.kk+1. essendo in g/cm2/d, l'input è già nella forma richiesta
+% P.tidx:P.tidx+1. essendo in g/cm2/d, l'input è già nella forma richiesta
 % dall'ADE.
-% Questo viene poi moltiplicato per W.dt nella stessa equazione.
-CNH4_SD                 = B.Cstar.NH.SD(P.kk);
-CNO_SD                  = B.Cstar.NO.SD(P.kk);
+% Questo viene poi moltiplicato per P.dt nella stessa equazione.
+CNH4_SD                 = P.compounds(4,i);
+CNOx_SD                 = P.compounds(5,i);
 % Costruzione dei pool:
 POOL_NH4_SD             = CNH4_UR + CNH4_ORG_rp + CNH4_ORG_sw + CNH4_SD;
-POOL_NO_SD              = CNO_SD; % [g cm-2]
+POOL_NO_SD              = CNOx_SD; % [g cm-2]
 % Una volta costituito, il POOL si assume distribuito per l'intero spessore
 % di suolo B.dL ==> lo si divide per B.dL e si ottiene una
 % concnetrazione in g/cm3 di suolo.
@@ -185,7 +196,7 @@ for sl=1:2
                 C2two   = lambdaup*abs(fluxup)*(C1top-C1(i,sl)) / P.nodes.dz(i);
             end
             C2three     = lambdalow*abs(fluxlow)*(C1(i,sl)-C1bot)/P.nodes.dz(i);
-            C2_phys     = W.dt*(-C2one + ((C2two-C2three)/P.nodes.dz(i)));
+            C2_phys     = P.dt*(-C2one + ((C2two-C2three)/P.nodes.dz(i)));
             % [g cm-3 H2O]
             C2phys      = ( C2_phys + C1(i,sl)*P.teta(i) ) / P.teta(i);
             
@@ -195,9 +206,9 @@ for sl=1:2
                 teta_ratio	= P.sh.tetafc(i)/P.teta(i);
             end
             C2_ntf_lq       = P.CDEKnitr(i)*1.07^ ...
-              (B.Tstar(P.kk)-S.Topt)*teta_ratio*C1(i,1)*P.teta(i);
+              (B.Tstar(P.tidx)-S.Topt)*teta_ratio*C1(i,1)*P.teta(i);
             C2_ntf_sd       = P.CDEKnitr(i)*1.07^ ...
-              (B.Tstar(P.kk)-S.Topt)*teta_ratio*P.sh.dap(i)*S1(i,1);
+              (B.Tstar(P.tidx)-S.Topt)*teta_ratio*P.sh.dap(i)*S1(i,1);
             % attingimento selettivo:
             C2_sink         = S.NX.Kr(sl)*P.sink(i)*C1(i,sl);
 
@@ -207,14 +218,14 @@ for sl=1:2
             elseif sl==2
                 % Sm(z,t), Eq. 16
                 C2_immb     = P.CDEKimmob(i)*1.05^ ...
-                  (B.Tstar(P.kk)-S.Topt)*teta_ratio*C1(i,2)*P.teta(i);
+                  (B.Tstar(P.tidx)-S.Topt)*teta_ratio*C1(i,2)*P.teta(i);
                 
                 % teta_tsh: the threshold water content for de-nitrification:
                 teta_tsh    = 0.627*P.sh.tetafc(i)-0.0267*(P.sh.tetas(i) ...
                                      -P.teta(i))/P.sh.tetas(i)*P.sh.tetafc(i);
                 if P.teta(i)>teta_tsh
                     % Sd(z,t), Eq. 17
-                    C2_dntf	= P.CDEKdenitr(i)*1.07^(B.Tstar(P.kk)- ...
+                    C2_dntf	= P.CDEKdenitr(i)*1.07^(B.Tstar(P.tidx)- ...
                                       S.Topt)*(P.teta(i)-teta_tsh) / ...
                                       (P.sh.tetafc(i)-teta_tsh)*C1(i,2)*P.teta(i);
                 else
@@ -226,12 +237,12 @@ for sl=1:2
             end
             
             % è giusto aggiungere C1?? Risponde Antonio...
-            C2_chem         = ( SsSk*W.dt + C1(i,sl)*P.teta(i) )/P.teta(i);
+            C2_chem         = ( SsSk*P.dt + C1(i,sl)*P.teta(i) )/P.teta(i);
             C2_tot          = C2phys + C2_chem;
 
             if S.NX.Kf2(sl)==1
                 C2out(i,sl) = ( C2phys*P.teta(i) + P.sh.dap(i)* ...
-                            S.NX.Kf1(sl)*C1(i,sl) + SsSk*W.dt ) ...
+                            S.NX.Kf1(sl)*C1(i,sl) + SsSk*P.dt ) ...
                                  / ( fnteta( W.hfc, P.sh, i ) + ...
                                       P.sh.dap(i)*S.NX.Kf1(sl) );
             elseif C2_tot < 10^-9
@@ -248,7 +259,7 @@ for sl=1:2
                 f_bis_sol   = @(yps) ...
                         P.teta(i)*yps - P.teta(i)*C2phys + ...
                         P.sh.dap(i)*S.NX.Kf1(sl)*yps^S.NX.Kf2(sl) - ...
-                        P.sh.dap(i)*S1(i,sl) - SsSk*W.dt;
+                        P.sh.dap(i)*S1(i,sl) - SsSk*P.dt;
                 % bisection calc:
                 C2out(i,sl) = mln_bisection( f_bis_sol, -100, 100, -30 );
             end

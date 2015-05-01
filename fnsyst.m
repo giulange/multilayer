@@ -74,7 +74,7 @@ i               = (2:(P.nz-1));
 %   -should be inverse, that is dz/dt as stated in Eq. 2.28 SWAP 32 manual
 %   -^2 is not good for a general implementation using variable compartment
 %    heights!
-ratio(i,1)      = W.dt ./ ( P.nodes.dz(i).^2 );
+ratio(i,1)      = P.dt ./ ( P.nodes.dz(i).^2 );
 % *
 
 alpha(i,1)      = -ratio(i).*km(i);
@@ -82,40 +82,40 @@ beta(i,1)       = P.cap(i) + ratio(i).*km(i) + ratio(i).*kp(i);
 gamma(i,1)      = -ratio(i).*kp(i);
 delta(i,1)      = P.cap(i) .* P.h1(i) + ...
                   P.nodes.dz(i) .* ratio(i) .* ( km(i)-kp(i) )...
-                  -W.dt .* P.sink(i);
+                  -P.dt .* P.sink(i);
 %% definire W.itbc (top boundary condition) e W.ibbc(bottom boundary condition) (=0 per q e 1 per h) 
 %% top node flux (positive upward)
 % i               = P.nz-1; % ==> i=1; Is it correct??
 i               = 1;
 % warning('Antonio wrote i=P.nz-1 (bottom), instead it should be i=1(top)')
-ratio(i,1)      = 2*W.dt/(P.nodes.dz(i).^2);
+ratio(i,1)      = 2*P.dt/(P.nodes.dz(i).^2);
 alpha(i,1)      = 0;
 gamma(i,1)      = -ratio(i)*kp(i);
 if W.itbc==0 % itbc differenzia hsurf da qsurf, visto che adesso abbiamo unificato in hqsurf?
     beta(i,1)   = P.cap(i) + ratio(i)*kp(i);
     delta(i,1)  = P.cap(i)*P.h1(i) - ...
-                  P.nodes.dz(i)*ratio(i)*(W.qsurf+kp(i)) - W.dt*P.sink(i);
+                  P.nodes.dz(i)*ratio(i)*(W.qsurf+kp(i)) - P.dt*P.sink(i);
 else
     beta(i,1)   = P.cap(i) + ratio(i)*km(i) + ratio(i)*kp(i);
     delta(i,1)  = P.cap(i)*P.h1(i) - ...
                   P.nodes.dz(i)*ratio(i)*(km(i)-kp(i)) + ...
-                  ratio(i)*km(i)*W.hsurf - W.dt*P.sink(i);
+                  ratio(i)*km(i)*W.hsurf - P.dt*P.sink(i);
 end
 %% bottom node flux
-ratio(P.nz,1)   = 2*W.dt/(P.nodes.dz(P.nz+1)*P.nodes.dz(P.nz));
+ratio(P.nz,1)   = 2*P.dt/(P.nodes.dz(P.nz+1)*P.nodes.dz(P.nz));
 alpha(P.nz,1)   = -ratio(P.nz)*km(P.nz);
 gamma(P.nz,1)   = 0;
 if W.ibbc==0
    beta(P.nz,1) = P.cap(P.nz) + ratio(P.nz)*km(P.nz);
    delta(P.nz,1)= P.cap(P.nz)*P.h1(P.nz) + ...
                   P.nodes.dz(P.nz)*ratio(P.nz)*(km(P.nz)+W.qbot) - ...
-                  W.dt*P.sink(P.nz);
+                  P.dt*P.sink(P.nz);
 else
    beta(P.nz,1) = P.cap(P.nz) + ratio(P.nz)*km(P.nz) + ...
                   ratio(P.nz)*kp(P.nz);
    delta(P.nz,1)= P.cap(P.nz)*P.h1(P.nz) + ...
                   P.nodes.dz(P.nz)*ratio(P.nz)*(km(P.nz)-kp(P.nz)) + ...
-                  ratio(P.nz)*kp(P.nz)*W.hbot-W.dt*P.sink(P.nz);
+                  ratio(P.nz)*kp(P.nz)*W.hbot-P.dt*P.sink(P.nz);
 end
 %% Thomas algorithm
 % NOTES:

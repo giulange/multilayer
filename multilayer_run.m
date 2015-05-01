@@ -16,7 +16,7 @@ fpf('Loading user vars...')
 run multilayer_conf.m
 
 fpf('Checking vars...')
-run multilayer_checkpars.m
+run multilayer_check_and_load.m
 
 % *****TEMPORARY*****
 fpf('Input data...  --->(temporary condition waiting for an exhaustive input framework!!)')
@@ -26,8 +26,9 @@ run multilayer_data_tmp.m
 fpf('Running prog...')
 run multilayer_prog.m
 
-% fpf('Displaying results...')
-% run multilayer_graph.m
-
+if proj.video
+    fpf('Displaying results...')
+    run multilayer_graph.m
+end
 %% clean
 clear fpf

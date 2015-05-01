@@ -44,14 +44,16 @@ P.time                          = NaN(1,P.Nj); % **USEFULL on Nj
 P.km_max                        = NaN(1,P.Nj); % **USELESS on Nj
 P.fluxsurf_max                  = NaN(1,P.Nj); % **USELESS on Nj
 P.km                            = NaN(1,P.Nj); % **USELESS on Nj
+P.iter                          = NaN(4,P.Nj);
 
 % -SCALARS:
 % --counters:
-P.j                             = NaN;
+P.j                             = 1;
+P.dt                            = NaN;
 P.jstar                         = NaN;
 P.k                             = NaN;
 P.SS                            = NaN;
-P.niter                         = NaN;
+P.niter                         = NaN(1,P.Nj);% might be useful!
 % --others:
 P.dpt                           = NaN;
 P.op                            = NaN;
@@ -62,6 +64,3 @@ P.ETp0                          = NaN;
 P.Ep                            = NaN;
 P.Tp                            = NaN;
 P.Droot                         = NaN;
-
-% -OTHERS:
-P.Cinput                        = NaN(2,1);

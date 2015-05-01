@@ -1,29 +1,58 @@
-function teta = fnteta( x, Psh, ii )
-% teta = fnteta( x, P.sh, ii )
+function teta = fnteta( x, Psh, i )
+% teta = fnteta( x, Psh, i )
+% 
+% DESCRIPTION
+%   Computes the moisture fraction at node(s) i according to the passed
+%   pressure head in x (which can also account for other forms of
+%   potential...).
+%   A similar function is watcon in functions.for, SWAP-32.
+% 
+% INPUTs
+%   x:      Matrix potential (e.g. pressure head "h").
+%   Psh:    The set of hydraulic characteristics of the soil grid at all
+%           nodes.
+%   i:      Two different usages of the function are possible according to
+%           the value assigned to i:
+%               *one value  --> Moisture at current i node of the soil
+%                               grid.
+%               *multiple   --> Moisture at all nodes passed in i.
+% 
+% OUTPUTs
+%   teta:   Moisture fraction at node(s) i.
 
-df          = Psh.tetas(ii)-Psh.tetar(ii);
-
-if x>0 
-    teta    = Psh.tetas(ii);
-elseif Psh.ifr(ii)==1
-    em      = 1-1/Psh.en(ii);
-    teta    = Psh.tetar(ii) + df/(1.+(abs(x)*Psh.alfvg(ii))^Psh.en(ii))^em;
-
-elseif Psh.ifr(ii)==2
-    em2     = 1-1/Psh.en2(ii);
-    teta    = Psh.tetar(ii) + df * ( Psh.fi(ii) * ...
-              ( (1+Psh.alfrs(ii)*abs(x))*exp(-Psh.alfrs(ii)*abs(x)) ) + ...
-              (1-Psh.fi(ii))*(1+(Psh.alfvg2(ii)*abs(x))^Psh.en2(ii))^(-em2)    );    
-%     lx=-1000000:1000:0;
-%     ly=tetar+df.*(fi.*((1+alfrs.*abs(lx)).*exp(-alfrs.*abs(lx)))+(1-fi).*(1+(alfvg.*abs(lx)).^en).^(-em));
-
-elseif Psh.ifr(ii)==3
-    em      = 1-1/Psh.en(ii);
-    em2     = 1-1/en2;
-    sef1    = (1+(Psh.alfvg (ii)*abs(x))^Psh.en(ii))^-em;
-    sef2    = (1+(Psh.alfvg2(ii)*abs(x))^Psh.en2(ii))^-em2;
-    sef     = fi*sef1 + (1-fi)*sef2;
-    teta    = Psh.tetar(ii) + df*sef;
+%% main
+teta            = NaN(length(i),1);
+if numel(x)~=1% at top/bottom nodes calls I don't need this adjustment:
+    x           = x(i);
 end
-
+for a = 1:length(i)
+    ii          = i(a);
+    df          = Psh.tetas(ii)-Psh.tetar(ii);
+    m           = 1-1./Psh.en(ii);
+    m2          = 1-1./Psh.en2(ii);
+    
+    % adjust moistures according to the value of x:
+    if x(a)>0
+        teta(a) = Psh.tetas(ii);
+        continue
+    end
+    
+    switch Psh.ifr(ii)
+        case 1
+            % SWAP-32, Eq. 2.4, page 27:
+            teta(a)= Psh.tetar(ii) + df./(1+(Psh.alfvg(ii).*abs(x(a))).^Psh.en(ii)).^m;
+        case 2
+            teta(a)= Psh.tetar(ii) + df .* ( Psh.fi(ii) .* ...
+                      ( (1+Psh.alfrs(ii).*abs(x(a))).*exp(-Psh.alfrs(ii).*abs(x(a))) ) + ...
+                      (1-Psh.fi(ii)).*(1+(Psh.alfvg2(ii).*abs(x(a))).^Psh.en2(ii)).^(-m2)    );
+        case 3
+            sef1= (1+(Psh.alfvg (ii).*abs(x(a))).^Psh.en(ii)).^-m;
+            sef2= (1+(Psh.alfvg2(ii).*abs(x(a))).^Psh.en2(ii)).^-m2;
+            sef = Psh.fi(ii).*sef1 + (1-Psh.fi(ii)).*sef2;
+            teta(a)= Psh.tetar(ii) + df.*sef;
+        otherwise
+            error('Bad setting of P.sh.ifr parameter at node %d!',ii)
+    end
+end
+%% end
 return

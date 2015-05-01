@@ -18,23 +18,13 @@ for mm=1:M.nvp
         end
     end
 %% Create printing matrices -- check with Antonio
-    % useless?
-    W.dt                = W.dtin;
-    
-    % *** -- put in initialization? -- ***
-    % Inizializzazione contatori e tempo di simulazione
-    % (mettiamo i contatori in struct array specifica come "C"!)
-    P.j                 = 1;
-    P.time(1)           = W.dt;
-    P.kk                = 1;
-    P.pp                = 1;
-    P.L                 = 0;
-    P.LL                = 0;
-    P.CC                = 0;
-    P.T                 = 0;
-%     P.TT                = 0;
+    % useful:
+    P.dt                = W.dtin;
+    P.time(1)           = P.dt;
     P.rnf               = 0;
-    P.ktec              = 1;  
+    P.ktec              = 1;
+    P.tidx_jm1          = floor(P.time(1))+1;
+    figure(98),clf
 %% Hydraulic mapping :: soil layers --> soil grid nodes
     % Retention & conductivity at soil grid nodes from info at soil layers:
     for inode = 1:P.nz
@@ -52,6 +42,8 @@ for mm=1:M.nvp
         P.sh.k0macr(inode)     = W.k0macr( P.nodes.soillayer(inode) );
         P.sh.bita(inode)       = W.bita(   P.nodes.soillayer(inode) );
         P.sh.bita2(inode)      = W.bita2(  P.nodes.soillayer(inode) );
+        % 'ifc' is the same along the whole soil profile, hence it must be
+        % transformed into a scalar!!
         P.sh.ifc(inode)        = W.ifc(    P.nodes.soillayer(inode) );
         % Calcolo del teta alla field capacity da utilizzare nel
         % modulo soluti per il calcolo del fattore di riduzione del
@@ -60,72 +52,20 @@ for mm=1:M.nvp
     end
 %% TIME simulation loop
     while P.time(P.j)<W.tmax
-%         waitbar( P.j / P.Nj )
-%% controllo sui tempi di stampa -- check:: position within while? correct?
-        if abs(P.time(P.j)-P.tprint(P.pp))<0.0001
-            P.TT                = 1;
-        elseif P.time(P.j)>P.tprint(P.pp)
-            P.time(P.j)         = P.tprint(P.pp);
-            W.dt                = P.tprint(P.pp)-P.time(P.j-1);
-            P.TT                = 1;
-        else
-            P.TT                = 0;
-        end
-%% adattamento T sim al T stampa -- check:: position within while? correct?
-        if P.time(P.j) >= P.tprint(P.pp)
-            P.TT                = 1;
-            P.time(P.j)         = P.tprint(P.pp);
-            W.dt                = P.tprint(P.pp);
-        elseif P.tprint(P.pp)-P.time(P.j) < W.dtmin && P.tprint(P.pp)-P.time(P.j)>=0
-            P.TT                = 1;
-            P.time(P.j)         = P.tprint(P.pp);
-            W.dt                = P.tprint(P.pp);
-        end
-%% controllo sui flussi al contorno superiore -- ATTENTION: dovrebbe stare in water transport (solve tq!)
-if W.itopvar==1 && P.L==0 % L ==> tutto ok nel j precedente
-    P.tq                    = B.top.thqstar(P.kk+1);
-
-    if W.itbc==0                    % flux
-        W.qsurf             = B.top.hqstar(P.kk);
-    elseif and(W.itbc==1,P.rnf==0)  % potential
-        W.hsurf             = B.top.hqstar(P.kk);
-    end
-
-    if W.ibotvar==1
-        if W.ibbc==0                % flux
-            W.qbot          = B.bot.hqstar(P.kk);
-        elseif W.ibbc==1            % potentials
-            W.hbot          = B.bot.hqstar(P.kk);
-        end
-    end
-
-    if and(W.isol==2,W.iCtopvar==1)
-        P.Cinput(1)         = B.Ctop.Cstar.NH.FR(P.kk);
-        P.Cinput(2)         = B.Ctop.Cstar.NO.FR(P.kk);
-    end
-
-    if W.iveg==1
-        P.ETp0              = V.Kc(P.kk)*V.ETr(P.kk);
-        P.Ep                = P.ETp0*exp(-V.extf*V.LAI(P.kk));
-        P.Tp                = P.ETp0-P.Ep;
-        P.Droot             = V.Droot(P.kk);
-    end
-end        
-%% controllo tempi top boundary -- check:: position within while? correct?
-        if W.itopvar==1
-            if abs(P.time(P.j)-P.tq)<0.00001
-                P.T             = 1;
-                P.L             = 0;
-            elseif P.time(P.j)>P.tq
-                P.time(P.j)     = P.tq;
-                W.dt            = P.tq-P.time(P.j-1);
-                P.T             = 1;
-                P.L             = 0;
-            else % which condition(s)?
-                P.T             = 0;
-                P.L             = 1;
+        % time element to extract from time-dependent parameter-vectors:
+        P.tidx              = floor(P.time(P.j))+1;
+        P.L                 = P.tidx > P.tidx_jm1;
+        % set the check upon the print times
+        if P.L
+            if P.time(P.j)-P.tidx >= W.tptole && P.tidx-P.time(P.j-1) >= W.tptole
+                % Set the proper dt increment for current simulation to
+                % print at the time defined by user plus the tolerance.
+                dtprevious  = P.dt;
+                P.time(P.j) = P.tidx; %P.time(P.j) -dtprevious +P.dt;
+                P.dt        = P.tidx-P.time(P.j-1);
             end
         end
+%         waitbar( P.j / P.Nj )
 %% calcolo valori potenziale osmotico per il tempo di simulazione (ERROR)
         if W.iosm==1 && V.ifs>3
             P.IEC               = 0;        % boolean: store if ktec incremented
@@ -140,58 +80,39 @@ end
                                     EC.data(:,P.ktec) ;
         end
 %% Water Transport
-        run multilayer_transport_water_us.m
+        if true
+            % execute saturated/unsaturated model:
+            run multilayer_transport_water_us.m
+        else        
+            % execute a different water transport model(s):
+            %  -for instance only for saturated:
+            run multilayer_transport_water_s.m
+            %  -or only unsaturated:
+            run multilayer_transport_water_u.m
+        end
 %% ?? define cell ??
-        P.jstar                     = P.j;
-        if P.LL==0
+        P.jstar                 = P.j;
 %% Solutes Transport
-            if W.isol==2
-            % update intial concentrations
-                if P.j==1% first iteration
-                    % [W.dz,1:2,P.Nj]
-                    P.C1(:,1)       = P.CDECinNH;
-                    P.C1(:,2)       = P.CDECinNO;
-                elseif P.j>P.jstar% se avanza...
-                    % OLD % P.C1(:,:,P.j) = P.C2(:,:,P.j-1);
-                    P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
-                elseif P.j==P.jstar% se non puo' avanzare...
-                    % OLD % P.C1(:,:,P.j) = P.C1star(:,:,P.j);
-                    P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
-                end
-                %[O,P] = multilayer_transport_solute_N_ade( P, W, S, B, O, mm );
-                [O.C2(:,P.j,mm,:),P]= multilayer_transport_solute_N_ade(P,W,S.CDE,...
-                                      B.Ctop,P.C1,O.fluxsurf(1,P.j,mm),...
-                                      O.fluxbot(1,P.j,mm) );
+        if W.isol==2
+        % update intial concentrations
+            if P.j==1% first iteration
+                % [W.dz,1:2,P.Nj]
+                P.C1(:,1)       = P.CDECinNH;
+                P.C1(:,2)       = P.CDECinNO;
+            elseif P.j>P.jstar% se avanza...
+                % OLD % P.C1(:,:,P.j) = P.C2(:,:,P.j-1);
+                P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
+            elseif P.j==P.jstar% se non puo' avanzare...
+                % OLD % P.C1(:,:,P.j) = P.C1star(:,:,P.j);
+                P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
             end
-%% restore qsurf & hsurf -- check with Antonio!!
-% Serve a ripristinare il valore di W.qsurf che potrebbe essere stato
-% cambiato nella routine per l'evaporazione W.qsurf=P.Ep oppure
-% W.qsurf=P.Emax.
-% Lo stesso vale per W.hsurf che potrebbe essere stato cambiato nella
-% routine per W.itbc=1 W.hsurf=(3*P.h1(1)-P.h1(2))/2 oppure
-% W.hsurf=W.hsurfmax.
-% Se questi valori non venissero ripristinati, nel giro successivo del
-% while i controlli sui flussi in superficie (per W.itbc=0) o sui
-% potenziali in superficie (per W.itbc=1) verrebbro effettuati non
-% utilizzando i valori letti nel file di input ma su quelli calcolati nella
-% routine.
-            if and(W.itopvar==1,W.itbc==0)
-                W.qsurf=B.top.hqstar(P.kk);
-            elseif and(and(W.itopvar==1,W.itbc==1),P.rnf==0)
-                W.hsurf=B.top.hqstar(P.kk);
-            elseif and(W.itbc==1,P.rnf==1)
-                W.qsurf=B.top.hqstar(P.kk);
-            end
-%             W.hqsurf     = B.top.hqstar(P.kk);
-%             W.hsurf     = B.top.hqstar(P.kk);
+            %[O,P] = multilayer_transport_solute_N_ade( P, W, S, B, O, mm );
+            [O.C2(:,P.j,mm,:),P]= multilayer_transport_solute_N_ade(P,W,S.CDE,...
+                                  B.Ctop,P.C1,O.fluxsurf(1,P.j,mm),...
+                                  O.fluxbot(1,P.j,mm) );
+        end
 %% runoff [& runon]
-            O.runoff(1,P.j,mm)   = W.qsurf-O.fluxsurf(1,P.j,mm);
-%% print potentials [useless ??]
-            % aggiorna il contatore per il tempo di stampa (ci serve
-            % ancora??)
-            if P.TT==1
-                P.pp        = P.pp+1;                
-            end
+        O.runoff(1,P.j,mm)      = W.qsurf-O.fluxsurf(1,P.j,mm);
 %% controllo di W.itbc
 %   Questo controllo va fatto solo se W.itopvar=1.
 %   Se W.itopvar=0, una volta avvenuto il cambio da W.itbc=0 a W.itbc=1,
@@ -204,27 +125,28 @@ end
 %   W.itbc da 1 a 0.
 %   Ovviamente questa verifica va fatta solo se si è entrati in W.itbc=1
 %   partendo da W.itbc=0.
-            if P.T==1               % flag counter top-bound
-                P.kk=P.kk+1;        % contatore top-bound & Ctop-bound  
-                 if W.itopvar==1    % che vuol dire?
-                     % se il flusso al nuovo kk > kk-1 ho ancora runoff
-                     if and(P.rnf==1,abs(B.top.hqstar(P.kk))<abs(B.top.hqstar(P.kk-1)))
-                        P.rnf=0;    % potrebbe non avere piu' senso 
-                        W.itbc=0;
-                     end
-                 end
+        if P.L==1               % flag counter top-bound
+            % se il flusso al nuovo P.tidx > P.tidx-1 ho ancora runoff
+            if and(P.rnf==1,abs(B.top.hqstar(P.tidx))<abs(B.top.hqstar(P.tidx_jm1)))
+                P.rnf=0;        % potrebbe non avere piu' senso 
+                W.itbc=0;
             end
+        end
 %% update time of simulation
-            P.j         = P.j+1;
-            P.time(P.j) = P.time(P.j-1)+W.dt;
-        end% if P.LL=0    
+        P.j         = P.j+1;
+        P.time(P.j) = P.time(P.j-1)+P.dt;
+        P.tidx_jm1  = P.tidx;
 %% PLOT -- tmp
 %         figure(88),whitebg('k')
 %         hold on,subplot(411),plot([P.sh.tetafc,P.teta])
 %         legend('tetafc','teta'),title(sprintf('j = %4d',P.j-1)), hold off;
 %         hold on,subplot(412),plot([P.sink]), legend('sink'),hold off;
-%         hold on,subplot(413),plot([P.h1,P.h2]), legend('h1','h2'),hold off;
+%         hold on,subplot(413),plot([P.h1(1:10),O.h22(1:10,P.j)]), legend('h1','h2'),hold off;
 %         hold on,subplot(414),plot([P.cap,P.kond]), legend('cap','kond'),hold off;
+        figure(98),whitebg('k'),
+        subplot(211),hold on,plot(O.h22(:,P.j-1)),hold off,legend('O.h22 cumulative');
+        title(sprintf('time(%4d) = %10.3f',P.j-1,P.time(P.j-1)),'FontSize',14,'FontWeight','b')
+        subplot(212),plot(O.h22(:,P.j-1)),legend('O.h22');
     end% P.time(P.j)<W.tmax
 %% MONTECARLO --END--
 end% mm=1:M.nvp
