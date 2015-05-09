@@ -1,11 +1,11 @@
-%% Initialization
-run multilayer_init.m
+%% Pre-allocation
+multilayer_init
 %% MONTECARLO --START--
 for mm=1:M.nvp
-    progress_bar(mm,M.nvp,'multilayer prog')
+%     progress_bar(mm,M.nvp,'multilayer prog')
 %     hwb = waitbar(0,['Please wait... [MCS=',num2str(mm),']']);
 %% Preallocation
-    run multilayer_preallocation.m
+    multilayer_preallocation
 %% Define conditions for current montecarlo setting
     if W.MTCL==1
         % ripristinare uso di M.nnc
@@ -17,14 +17,15 @@ for mm=1:M.nvp
             eval( [M.list{ nvars } ' = M.data(M.combinations(',num2str(mm),',:),',num2str(nvars),')'';'] )
         end
     end
-%% Create printing matrices -- check with Antonio
+%% Initialize :: dt, time, tidx, rnf, ktec 
     % useful:
     P.dt                = W.dtin;
     P.time(1)           = P.dt;
     P.rnf               = 0;
     P.ktec              = 1;
     P.tidx_jm1          = floor(P.time(1))+1;
-    figure(98),clf
+%     hFig = figure(98);clf
+%     set(hFig,'Name','Potentials & time increments','Position',[800, 20, 500, 800]),whitebg('k'),
 %% Hydraulic mapping :: soil layers --> soil grid nodes
     % Retention & conductivity at soil grid nodes from info at soil layers:
     for inode = 1:P.nz
@@ -52,11 +53,21 @@ for mm=1:M.nvp
     end
 %% TIME simulation loop
     while P.time(P.j)<W.tmax
+%% update tidx & dt
         % time element to extract from time-dependent parameter-vectors:
         P.tidx              = floor(P.time(P.j))+1;
+%       use mod() to simulate the last piece of day till P.tidx, without
+%       updating input vars to the new DAY
+        
         P.L                 = P.tidx > P.tidx_jm1;
         % set the check upon the print times
         if P.L
+%             waitbar( P.j / P.Nj )
+
+            % DELETE the following if to allow the printing time exactly at
+            % P.tidx time!! Be aware that the printing at the exact time is
+            % not ensured when the tridiagonal system cannot be solved at
+            % current dt (and the program use a different dt
             if P.time(P.j)-P.tidx >= W.tptole && P.tidx-P.time(P.j-1) >= W.tptole
                 % Set the proper dt increment for current simulation to
                 % print at the time defined by user plus the tolerance.
@@ -65,7 +76,6 @@ for mm=1:M.nvp
                 P.dt        = P.tidx-P.time(P.j-1);
             end
         end
-%         waitbar( P.j / P.Nj )
 %% calcolo valori potenziale osmotico per il tempo di simulazione (ERROR)
         if W.iosm==1 && V.ifs>3
             P.IEC               = 0;        % boolean: store if ktec incremented
@@ -82,16 +92,14 @@ for mm=1:M.nvp
 %% Water Transport
         if true
             % execute saturated/unsaturated model:
-            run multilayer_transport_water_us.m
+            multilayer_transport_water_us
         else        
             % execute a different water transport model(s):
             %  -for instance only for saturated:
-            run multilayer_transport_water_s.m
+            multilayer_transport_water_s
             %  -or only unsaturated:
-            run multilayer_transport_water_u.m
+            multilayer_transport_water_u
         end
-%% ?? define cell ??
-        P.jstar                 = P.j;
 %% Solutes Transport
         if W.isol==2
         % update intial concentrations
@@ -99,61 +107,26 @@ for mm=1:M.nvp
                 % [W.dz,1:2,P.Nj]
                 P.C1(:,1)       = P.CDECinNH;
                 P.C1(:,2)       = P.CDECinNO;
-            elseif P.j>P.jstar% se avanza...
+            else
                 % OLD % P.C1(:,:,P.j) = P.C2(:,:,P.j-1);
-                P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
-            elseif P.j==P.jstar% se non puo' avanzare...
-                % OLD % P.C1(:,:,P.j) = P.C1star(:,:,P.j);
-                P.C1            = squeeze(O.C2(:,P.j-1,mm,:));   % UGUALI??
+                P.C1            = squeeze(O.C2(:,P.j-1,mm,:));
             end
             %[O,P] = multilayer_transport_solute_N_ade( P, W, S, B, O, mm );
             [O.C2(:,P.j,mm,:),P]= multilayer_transport_solute_N_ade(P,W,S.CDE,...
-                                  B.Ctop,P.C1,O.fluxsurf(1,P.j,mm),...
-                                  O.fluxbot(1,P.j,mm) );
+                                    B.Ctop,P.C1,O.fluxsurf(1,P.j,mm),...
+                                    O.fluxbot(1,P.j,mm), O.h22(:,P.j,mm) );
         end
-%% runoff [& runon]
-        O.runoff(1,P.j,mm)      = W.qsurf-O.fluxsurf(1,P.j,mm);
-%% controllo di W.itbc
-%   Questo controllo va fatto solo se W.itopvar=1.
-%   Se W.itopvar=0, una volta avvenuto il cambio da W.itbc=0 a W.itbc=1,
-%   non e' piu' necessario tornare ad W.itbc=0 perche' il flusso non cambia
-%   fino a fine simulazione.
-%   Se il nuovo B.top.hqstar(P.kk) e' maggiore del vecchio
-%   (B.top.hqstar(P.kk-1) non e' necessario cambiare W.itbc da 1 a 0.
-%   Se invece e' minore allora bisogna di nuovo verificare se il nuovo
-%   B.top.hqstar sia maggiore di P.fluxsurf_max, ed allora occorre cambiare
-%   W.itbc da 1 a 0.
-%   Ovviamente questa verifica va fatta solo se si è entrati in W.itbc=1
-%   partendo da W.itbc=0.
-        if P.L==1               % flag counter top-bound
-            % se il flusso al nuovo P.tidx > P.tidx-1 ho ancora runoff
-            if and(P.rnf==1,abs(B.top.hqstar(P.tidx))<abs(B.top.hqstar(P.tidx_jm1)))
-                P.rnf=0;        % potrebbe non avere piu' senso 
-                W.itbc=0;
-            end
-        end
-%% update time of simulation
+%% Update :: j, time, tidx
         P.j         = P.j+1;
         P.time(P.j) = P.time(P.j-1)+P.dt;
         P.tidx_jm1  = P.tidx;
-%% PLOT -- tmp
-%         figure(88),whitebg('k')
-%         hold on,subplot(411),plot([P.sh.tetafc,P.teta])
-%         legend('tetafc','teta'),title(sprintf('j = %4d',P.j-1)), hold off;
-%         hold on,subplot(412),plot([P.sink]), legend('sink'),hold off;
-%         hold on,subplot(413),plot([P.h1(1:10),O.h22(1:10,P.j)]), legend('h1','h2'),hold off;
-%         hold on,subplot(414),plot([P.cap,P.kond]), legend('cap','kond'),hold off;
-        figure(98),whitebg('k'),
-        subplot(211),hold on,plot(O.h22(:,P.j-1)),hold off,legend('O.h22 cumulative');
-        title(sprintf('time(%4d) = %10.3f',P.j-1,P.time(P.j-1)),'FontSize',14,'FontWeight','b')
-        subplot(212),plot(O.h22(:,P.j-1)),legend('O.h22');
     end% P.time(P.j)<W.tmax
 %% MONTECARLO --END--
 end% mm=1:M.nvp
 % close(hwb) % close waitbar
 %% SAVE -- incomplete [set which times and nodes to print!!]
 if W.MTCL == 0 || M.nvp == 1
-    multilayer_save( O, proj, P.jstar )
+    multilayer_save( O, proj, P.j-1 )
 elseif W.MTCL == 1
     multilayer_save_mcs( O, proj )
 end

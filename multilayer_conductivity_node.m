@@ -2,7 +2,7 @@ function Ki = multilayer_conductivity_node( x, Psh, i )
 % Ki = multilayer_conductivity_node( x, P.sh, ii )
 % 
 % DESCRIPTION
-%   It computes nodal hydraulic conductivity.
+%   It computes nodal (non-saturated?) hydraulic conductivity.
 %   It can work on single node or multiple nodes according to how the i
 %   variable is passed in input.
 %   This function has similar scope of "hconduc" function in functions.for,
@@ -48,6 +48,7 @@ for a = 1:length(i)
                 Ki(a)   = Psh.k0(ii);
             else
                 % Eq. 2.6 of SWAP 32 manual, page 28:
+                % unsaturated hydraulic conductivity:
                 Ki(a)   = Psh.k0(ii) * Se^Psh.bita(ii) * (1-(1-Se^(1/m))^m)^2;
             end
 

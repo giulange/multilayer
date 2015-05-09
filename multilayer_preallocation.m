@@ -44,22 +44,23 @@ P.time                          = NaN(1,P.Nj); % **USEFULL on Nj
 P.km_max                        = NaN(1,P.Nj); % **USELESS on Nj
 P.fluxsurf_max                  = NaN(1,P.Nj); % **USELESS on Nj
 P.km                            = NaN(1,P.Nj); % **USELESS on Nj
-P.iter                          = NaN(4,P.Nj);
+% [p;nr_breaked;fl_noconv;n_noconv;iL;bt_breaked]
+P.iter                          = NaN(6,P.Nj);
 
 % -SCALARS:
 % --counters:
 P.j                             = 1;
 P.dt                            = NaN;
-P.jstar                         = NaN;
 P.k                             = NaN;
-P.SS                            = NaN;
-P.niter                         = NaN(1,P.Nj);% might be useful!
+% P.niter                         = NaN(1,P.Nj);% might be useful!
 % --others:
+P.Emax                          = NaN;
+P.teta_hsurf                    = NaN;
+P.teta_hbot                     = NaN;
+%   initialized to zero (SWAP initialise pond in SoilWater(1), line 173)
+% P.pond                          = 0;
 P.dpt                           = NaN;
 P.op                            = NaN;
-P.teta_hsurf                    = NaN;
-P.Emax                          = NaN;
-P.teta_hbot                     = NaN;
 P.ETp0                          = NaN;
 P.Ep                            = NaN;
 P.Tp                            = NaN;

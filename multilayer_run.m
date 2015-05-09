@@ -10,25 +10,25 @@ fpf = @(TXT) fprintf('%s\n', TXT);
 % run multilayer_preallocation_static.m
 
 fpf('Loading prog vars...')
-run multilayer_conf_admin.m
+multilayer_conf_admin
 
 fpf('Loading user vars...')
-run multilayer_conf.m
+multilayer_conf
 
 fpf('Checking vars...')
-run multilayer_check_and_load.m
+multilayer_check_and_load
 
 % *****TEMPORARY*****
 fpf('Input data...  --->(temporary condition waiting for an exhaustive input framework!!)')
-run multilayer_data_tmp.m
+multilayer_data_tmp
 % *****TEMPORARY*****
 
 fpf('Running prog...')
-run multilayer_prog.m
+multilayer_prog
 
 if proj.video
     fpf('Displaying results...')
-    run multilayer_graph.m
+    multilayer_graph
 end
 %% clean
 clear fpf

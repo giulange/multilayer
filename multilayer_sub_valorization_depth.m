@@ -35,7 +35,7 @@ else
     else
         O   = NaN( nz, 1 );
         for ii = 1:size( I, 1 )
-            O( z(1:end-1) > I(ii,1) ) = I( ii, 2 );
+            O( z(1:end) > I(ii,1) ) = I( ii, 2 );
         end
     end
 end

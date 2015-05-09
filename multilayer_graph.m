@@ -66,7 +66,7 @@ elseif sl==2
 end
 
 [X,Y] = meshgrid([1,19],-(P.nodes.z(1:end-1)-P.nodes.dz(1:end-1)*0.5));
-Csolute = squeeze( O.C2(:,1:P.jstar,1,sl) );
+Csolute = squeeze( O.C2(:,1:P.j-1,1,sl) );
 
 % Csolute = log(Csolute +0.0001);
 
@@ -75,11 +75,11 @@ cmap = colormap(jet(256)); % hsv, cool, jet
 % caxis( mima )
 hold on
 colorbar
-for tj = 1:P.jstar
+for tj = 1:P.j-1
     title( {'{\fontsize{16}\color{yellow}NO_3^{-}} \fontsize{13}\color{green}', ...
         sprintf('Timestep: %4d',tj)} )
-    Z = repmat( log(Csolute(:,tj)), 1, 2);
-%     Z = repmat( Csolute(:,tj), 1, 2);
+%     Z = repmat( log(Csolute(:,tj)+1e-10), 1, 2);
+    Z = repmat( Csolute(:,tj), 1, 2);
     pcolor(X,Y,Z)
     pause(0.2)
 end

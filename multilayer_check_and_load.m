@@ -2,7 +2,7 @@
 err_msg_wrong_par_set   = @(PAR) sprintf('This parameter was set in a wrong way: %s', PAR);
 len_units_time          = @(ed,sd) (datenum(ed)-datenum(sd)+1)/W.timestep;
 len_units_time_str1     = @(ed,sd) (datenum(ed,'yyyy-mm-dd,hh') - datenum(sd)+1)/W.timestep;
-len_units_time_str2     = @(ed,sd) (datenum(ed) - datenum(sd,'yyyy-mm-dd,hh')+1)/W.timestep;
+% len_units_time_str2     = @(ed,sd) (datenum(ed) - datenum(sd,'yyyy-mm-dd,hh')+1)/W.timestep;
 %% check dirs
 if ~exist( proj.ipath, 'dir' )
     error('The Project directory does not exist!')
@@ -142,15 +142,26 @@ else
         P.bothq         = [P.bothq, repmat(B.bot.hqstar{end,2},1, LEN )];
     end
 end
-%% S.compounds
+%% S.compounds & S.fertilizers
 if S.isfert
     P.compounds = NaN;
+    
+    % Then convert to something similar to P.compounds readly used by
+    %    multilayer:
+    % ...to be developed!!
+    P.fertilizers = NaN;
+    
 else
+    P.fertilizers = NaN;
+    
     P.compounds = zeros( size(S.compounds,2)-1, W.tmax );
     for ii = 1:size(S.compounds,1)
         t_elem = len_units_time_str1( S.compounds{ii,1}, W.sdate );
         P.compounds(:,t_elem) = cell2mat(S.compounds(ii,2:end));
     end
+    % Convert [mg cm-2] to [g cm-2] used in multilayer:
+    P.compounds = P.compounds / 1000;
+    
 end
 %% P.hin
 P.hin       = multilayer_sub_valorization_depth( W.hin, P.nz, P.nodes.z(1:end-1) );
@@ -319,4 +330,4 @@ end
 %% ...something else?
 %% include checks on EC (in particular EC.matrix!!)
 %% end
-clear err_msg_wrong_par_set len_units_time ii LEN
+clear err_msg_wrong_par_set len_units_time ii LEN len_units_time_str1 len_units_time_str2

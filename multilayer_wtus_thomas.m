@@ -4,8 +4,8 @@
 % lettura h iniziali e aggiornamento h
 if P.j==1
     P.h1                    = P.hin;
-else %if P.j>P.jstar  % if simulation runs normally
-    P.h1                    = O.h22(:,P.j-1); % --> not yet initialized!!
+else
+    P.h1                    = O.h22(:,P.j-1,mm);
 end
 %% teta, cond, cap, sink :: all nodes
 % calc. param. ritenz. e conducib. ai vari nodi nei diversi strati
@@ -14,9 +14,9 @@ for i=1:P.nz
     P.teta(i)               = fnteta( P.h1, P.sh, i );
     % Conducibilità:
     if P.sh.ifc(i)==1 || P.sh.ifc(i)==3
-        P.kond(i)           = multilayer_conductivity_node( P.teta,P.sh, i );
+        P.kond(i)           = multilayer_conductivity_node( P.teta(i),P.sh, i );
     else
-        P.kond(i)           = multilayer_conductivity_node( P.h1,  P.sh, i );
+        P.kond(i)           = multilayer_conductivity_node( P.h1(i),  P.sh, i );
     end
     % Capacità:
     P.cap(i)                = multilayer_capacity(  P.h1,  P.sh, i );
@@ -122,6 +122,7 @@ switch W.itbc% 0:flux; 1:potential;
 end
 %% FLUX :: BOTTOM boundary
 if W.ibbc==2
+    %                                    |   ==0  |
     W.hbot                  = P.h1(P.nz)-(W.grad-1)*P.nodes.dz(P.nz+1);
 end
 
@@ -148,7 +149,7 @@ end
 %% FLUX :: INTERMEDIATE nodes -- errors? check with Antonio
 % Check errors for dz(?):
 %   > at P.flux(1,.)        --> dz(1)           *error
-%       - denominator: 1.5? +1? dz(1) soltanto?
+%       - why h1(2) and not h1(1)?? as in SWAP, for instance
 %   > at P.flux(P.nz,.)     --> dz(end)         *error
 %       - denominator: +1?
 %   > at P.flux(2:P.nz-1,.) --> dz(2:P.nz-1)    *good!
@@ -202,7 +203,7 @@ O.h22(:,P.j,mm)             = fnsyst( P, W );
 for p = 0:W.maxit
     
     if max(abs(O.h22(:,P.j,mm)-P.h2))<W.tolle1
-        nr_breaked  = true;
+        nr_breaked          = true;
         break
     end
 
@@ -222,38 +223,34 @@ for p = 0:W.maxit
 end
 
 if nr_breaked
-    P.iter(:,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
+    P.iter(:,P.j)           = [p;nr_breaked;fl_noconv;n_noconv];
     % Copied by HYDRUS(?):
     if p<=3
         P.dt                = W.multmin * P.dt;
         if P.dt>W.dtmax
             P.dt            = W.dtmax;
         end
-    elseif and(p>=W.maxit-3,p<=W.maxit)
+    elseif and(p>=W.maxit-2,p<=W.maxit)
+%     elseif and(p>=4,p<=W.maxit)
         P.dt                = W.multmax * P.dt;
         if P.dt<W.dtmin
             P.dt            = W.dtmin;
         end
     end
 else
-    % Migliorare soluzione, o comunque salvare in M.nnc l'eventuale
-    % simulazione saltata
-    if P.dt==W.dtmin
-        % *CONTINUE WITHOUT CONVERGENCE:
-        fl_noconv = true;% is non-convergent?
-        % ...what to do next? --> we should do something
-    elseif P.dt>W.dtmin
-        n_noconv = n_noconv +1;
-        P.iter(:,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
+    n_noconv            = n_noconv +1;
+    dtprevious          = P.dt;
+    if P.dt > W.dtmin*3
         P.dt            = P.dt/3;
-        P.time(P.j)     = P.time(P.j)-2*P.dt;
-        if P.dt<=W.dtmin
-            P.time(P.j) = P.time(P.j) - P.dt + W.dtmin;
-            P.dt        = W.dtmin;
-        end
-        
+        P.time(P.j)     = P.time(P.j) -dtprevious +P.dt;
         % If we go back to the previous integer, we must update:
-        P.tidx              = floor(P.time(P.j))+1;
+        P.tidx          = floor(P.time(P.j))+1;
+
+    elseif P.dt>W.dtmin
+        P.dt            = W.dtmin;
+        P.time(P.j)     = P.time(P.j) -dtprevious +P.dt;
+        % If we go back to the previous integer, we must update:
+        P.tidx          = floor(P.time(P.j))+1;
 
 % --- useless        
         % Ripristino flussi o potenziali nel caso di
@@ -277,6 +274,12 @@ else
             P.ktec      = P.ktec-1;
         end
 % --- useless
-        
+
+    elseif P.dt==W.dtmin
+        % *CONTINUE WITHOUT CONVERGENCE:
+        fl_noconv       = true;% is non-convergent?
+        % ...what to do next? --> we should do something
+
     end
+    P.iter(:,P.j)       = [p;nr_breaked;fl_noconv;n_noconv];
 end

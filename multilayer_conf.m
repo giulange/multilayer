@@ -52,7 +52,7 @@ proj.ipath          = '/home/giuliano/git/multilayer';
 %                   stored during multilayer simulation.
 %                   A check is performed to ensure that new simulations do
 %                   not overwrite old ones, if not needed.
-proj.opath          = '/home/giuliano/git/multilayer/output/';
+proj.opath          = '/home/giuliano/git/multilayer/output_sol/';
 
 % video:            Set whether to graph (TRUE) the solute transport
 %                   simulation in time or not (FALSE).
@@ -61,7 +61,7 @@ proj.opath          = '/home/giuliano/git/multilayer/output/';
 %                   Now it uses the pcolor built-in function, but in future
 %                   version I have to enhance it (the nodes are not well
 %                   defined, above all the bottom ones!).
-proj.video          = true;
+proj.video          = false;
 %% PROGRAM MODULES:
 % -------------------------------------------------------------------------
 % MTCL:             Montecarlo simulation
@@ -75,7 +75,7 @@ W.MTCL              = 0;
 %                               fine) based on Thomas algorithm.
 %                       *1:     New solver based on Newton-Raphson
 %                               algorithm (to be comleted and tested).
-W.wt_mod            = 0;
+W.wt_mod            = 1;
 % ------------------
 % isol:             Flag to set the model of solute transport.
 %                   	*0: none solute transport
@@ -158,7 +158,7 @@ W.tolle1            = 1e-4;
 %                   the valorization of W.timestep (i.e. W.dtin =
 %                   W.dtin/W.timestep).
 %                   Default value is 1e-6 and range is [1e-6, 1e-2]
-W.dtmin             = 1e-8;
+W.dtmin             = 1e-6;
 % ------------------
 % dtmax:            Maximum timestep during simulation.
 %                   During simulation this value is adapted to accomodate
@@ -211,7 +211,7 @@ W.dtfactor          = 2.0;
 %                   It is doubled internally when the current timestep is
 %                   equal to the minimum user-defined timestep.
 %                   Default value is 30 and range is [25, 45].
-W.maxit             = 10;
+W.maxit             = 30;
 % ------------------
 % maxbacktrack:     Maximum number of backtracks during a single
 %                   Newton-Raphson iteration. It is used to make a step
@@ -341,7 +341,7 @@ W.sg.anotherkind    = [];
 % ------------------
 % plotme:           Set whether to plot (TRUE) the soil grid configuration
 %                   or not (FALSE).
-W.sg.plotme         = true;
+W.sg.plotme         = false;
 % -------------------------------------------------------------------------
 
 
@@ -443,8 +443,8 @@ W.Kmeth             = 1;
 % hfc:              ??
 W.hfc               = -333; % --> check with Antonio!!
 % ------------------
-% vpr:              Relative humidity (fraction) ??
-W.vpr               = 0.5;
+% vpr:              Relative humidity (fraction) ?? <-- read from meteo
+W.vpr               = 0.85;
 % ------------------
 % tetal:            Threshold teta for the exponential-type conductivity
 %                   function.
@@ -455,8 +455,23 @@ W.tetal             = 0.0002;
 %                   Default value is 15
 W.bital             = 15.0;
 % ------------------
-% hsurfmax:         ??
-W.hsurfmax          = 0.0;
+% hsurfmax:         Max potential allowed at soil surface (ponding at 0
+%                   node)
+W.hsurfmax          = -0.0;
+% pondmax:          Maximum amount of ponding on soil surface before runoff
+%                   starts. [cm]
+%                   Default value is 0.0 and range is [0.0, 2.0] for well
+%                   maintained agricultural fields.
+%                   [It should be the same of hsurfmax, which is used in
+%                   THOMAS algorithm]
+W.pondmax           = 1;% [cm]
+% rsro:             Drainage resistance for surface runoff. [0.001, 1.0]
+%                   See Eq. 4.2, page 71, SWAP-32 manual.
+W.rsro              =  0.5;
+% rsroExp:          Exponent in drainage equation of surface runoff.
+%                   [0.1, 10.0]
+%                   See Eq. 4.2, page 71, SWAP-32 manual.
+W.rsroExp           =  1.0;
 % -------------------------------------------------------------------------
 
 
@@ -475,7 +490,7 @@ W.hsurfmax          = 0.0;
 %                       Depth [cm]      W.hin [?]
 %                       [0,botlim]      [-100,+100]
 W.hin               = [
-                        0               -100
+                        0               -1000
                       ];
 %                   -----------------------------------
 % -------------------------------------------------------------------------
@@ -569,33 +584,12 @@ W.hbot              = -0.0;
 % grad:             Gradient value assigned to bottom boundary.
 W.grad              = 1.0;
 % -------------------------------------------------------------------------
-%%   CLIMATIC INPUT
+%%   CLIMATIC INPUT [B.top]
 % ----------------------------------
 
-% revameth:         Flag to set the method("meth") of reduction("r") of
-%                   soil evaporation("eva") on daily basis.
-%                       *0  no function - peva is reduced to maximum Darcy
-%                           flux;
-%                       *1  Black function - peva is reduced to maximum
-%                           Darcy flux and to maximum Black (1969).
-%                       *2  Boesten/Stroosnijder function - peva is reduced
-%                           to maximum Darcy flux and to maximum
-%                           Boesten/Stroosnijder (1986).
-%                           (not implemented yet)
-B.top.revameth      = 0;
-% Rsigni:           Minimum rainfall to reset the model of evaporation
-%                   reduction according to Black (see SWAP-32 manual page
-%                   63), expressed in [mm d-1].
-%                   Deafult value is 0.5 and range is [0.0, 10.0].
-B.top.Rsigni        = 5.0;% [mm d-1]
-
-% revacoef:         Soil evaporation coefficient of Black or
-%                   Boesten/Stroosnijder reduction function [cm d1/2].
-%                   Default value is ____ and range is [0.00, 1.00].
-B.top.revacoef      = 0.54;
-
-
-
+% **IMPORTANT
+% Now relative humidity is fixed in W.vpr! I should read it here in meteo
+% file as a dynamic variable.
 
 
 
@@ -621,7 +615,7 @@ db_name     = 'clim_vars_multilayer';
 table_res   = 'h24_320m';   % { h24 , h24_320m }
 
 % run the following in case connection does not work:
-% javaclasspath( '/home/giuliano/.m2/repository/mysql/mysql-connector-java/5.1.17/mysql-connector-java-5.1.17.jar' )
+javaclasspath( '/home/giuliano/.m2/repository/mysql/mysql-connector-java/5.1.17/mysql-connector-java-5.1.17.jar' )
 
 % extract meteo data
 query_str   = sprintf( [ ...
@@ -651,19 +645,44 @@ meteo_in    = curs.Data;
 % assign to multilayer climatic parameters:
 B.top.eto       = 0.1*meteo_in.eto_hs(1:end)';%     [cm d-1]
 B.top.radi      = meteo_in.rad_int(1:end)';%        []
+
+% ---CORRECT!!!
 % B.top.rain      = 0.1*meteo_in.rain_cum(1:end)';%   [cm d-1]
 B.top.rain      = -1*[ -0.961	-0.361	0	-1.325	-0.314	-0.489	-0.489	-0.472	-0.489	0	-0.911	-0.489	-0.489	-0.492	-0.389	-0.417	0	-0.407	0	-0.647	0	-0.833	0	-0.6	0	-0.69	0	-0.685	0	-0.518	0	0	-0.68	0	-0.661	0	-0.638	0	0	-0.578	0	-0.623	0	-0.516	-0.6	0	-0.52	0	-0.451	0	-0.643	0	-0.487	0	0	-0.526	0	-0.463	-0.5	0	-0.726	0	-0.611	0	-0.549	-0.7	0	-0.402	0	-0.598	0	-0.793	0	0	-0.537	0	0	-0.527	0	-0.5	0	-0.575	0	0	-0.499	0	-0.512	0	0	-0.499	0	-0.48	0	-0.508	0	0	-0.562	0	0	0	-0.518	0	0	-0.526	0	0	0	-0.463	0	0	-0.537	0	-0.5	0	-0.401	0	0	-0.544	0	0];%	0	-0.568	0	0	-0.405	0 ]';
-B.top.tmax      = meteo_in.temp_max(1:end)';%       [C]
-B.top.tmin      = meteo_in.temp_min(1:end)';%       [C]
+B.top.rain      = B.top.rain(1:120);
+% ---
+
+B.top.tmax      = meteo_in.temp_max(1:end)';%       [°C]
+B.top.tmin      = meteo_in.temp_min(1:end)';%       [°C]
 % clean
-clear curs conn driver db_url db_name driver iCol iRow table_res query_str
+clear curs conn driver db_url db_name meteo_in driver iCol iRow table_res query_str
 %%   TOP BOUNDARY INPUT
 % ----------------------------------
 B.top.description   = 'MARWA CORRECTED NOVEMBRE 2011';%--> 'a discretization...'
-B.top.ntbc          = 126;
-
 B.top.isirri        = false;
-B.top.irri          = 0;                    %   [mm d-1]
+B.top.irri          = 0;                    %   [cm d-1]
+
+% revameth:         Flag to set the method("meth") of reduction("r") of
+%                   soil evaporation("eva") on daily basis.
+%                       *0  no function - peva is reduced to maximum Darcy
+%                           flux;
+%                       *1  Black function - peva is reduced to maximum
+%                           Darcy flux and to maximum Black (1969).
+%                       *2  Boesten/Stroosnijder function - peva is reduced
+%                           to maximum Darcy flux and to maximum
+%                           Boesten/Stroosnijder (1986).
+%                           (not implemented yet)
+B.top.revameth      = 0;
+% Rsigni:           Minimum rainfall to reset the model of evaporation
+%                   reduction according to Black (see SWAP-32 manual page
+%                   63), expressed in [cm d-1].
+%                   Deafult value is 0.5 and range is [0.0, 10.0].
+B.top.Rsigni        = 0.5;% [cm d-1]
+
+% revacoef:         Soil evaporation coefficient of Black or
+%                   Boesten/Stroosnijder reduction function [cm d1/2].
+%                   Default value is 0.35 and range is [0.00, 1.00].
+B.top.revacoef      = 0.54;% grapevine
 %%   BOTTOM BOUNDARY INPUT
 % ----------------------------------
 B.bot.description   = 'MARWA CORRECTED botboundary';%--> 'a discretization...'
@@ -950,7 +969,7 @@ V.Ke                = {
 %                       Time [day]          V.Ke [-]
 %                       [sdate,edate]       [0,...,N]
 V.Kc                = {
-                        '2013-01-01,00'     1.00
+                        '2013-01-01,00'     0.15
                         '2013-03-22,00'     0.60
                       };
 %                   -----------------------------------
@@ -967,11 +986,11 @@ V.kdir              = 0.90;
 % avhhb:            Interception coefficient "a" of Von Hoyningen-Hune
 %                   (1983) and Braden (1985).
 %                   See SWAP-32, Eq.2.52, page 54.
-%                   Default value for agricultural crops is 0.25 [mm d-1]
+%                   Default value for agricultural crops is 0.025 [cm d-1]
 %                   and range is [0.000, 1,000].
 %                   Note that you have to use all top boundary water terms
 %                   in millimiters for consistency!
-V.avhhb             =      0.25;% [mm d-1] and not [cm d-1]
+V.avhhb             =      0.025;% [cm d-1]
 
 % ifs:              Flag to set the type of sink function {Feddes, vanGen.}
 %                       *1      ->

@@ -1,5 +1,5 @@
-function [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf, fluxbot )
-% [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf, fluxbot )
+function [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf, fluxbot, h22 )
+% [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf, fluxbot, h22 )
 % 
 % OLD CALL:
 %   [O,P] = multilayer_transport_solute_N_ade( P, W, S, B, O, mm )
@@ -66,18 +66,6 @@ if and(W.isol==2,W.iCtopvar==1)
     % fertigation(NO3):
     P.Cinput(2)     = P.compounds(7,P.tidx);
 end
-
-% ?? aggiustare su (sl) ??
-if W.iCtopvar==0 % DELETE !!! understand how... similar to itopvar!!
-    if and(P.time(P.j)>=S.tCinput,P.CC==0)
-        P.Cinput        = S.Cinput;
-        if P.time(P.j)>=S.tCinput_end
-            P.CC        = 1;
-        end
-    else
-        P.Cinput        = 0;
-    end
-end
 %% IDROLISI E VOLATILIZZAZIONE UREA + MINERALIZZAZIONE SOM
 % 
 % -----------------------------------------------------------------------
@@ -91,10 +79,9 @@ idL                     = sum(P.nodes.z < B.dL);
 
 for i=1:P.tidx% P.kk
 %     tm                  = P.time(P.j) - B.tqstar(i); % check with Antonio
-    tm                  = P.time(P.j) - floor(P.time(P.j)); % check with Antonio
+    tm                  = P.time(P.j) -i+1;%floor(P.time(i)); % check with Antonio
 %     CNH4_UR_CUM(i) = P.compounds(1,i)*(1-exp(-B.KhUR*tm));
 %     CNH3_UR_CUM(i) = P.compounds(1,i)*(1-exp(-B.KvUR*tm));      
-
     
     % Calcolo del fattore di riduzione del coefficiente di nitrificazione
     % (vedi Gusman et al, 1999. Analytical Modeling of Nitrogen Dynamics in
@@ -115,7 +102,8 @@ for i=1:P.tidx% P.kk
     B.KmORG_sw          = 4.0*10^9  * exp(-8400/(B.Tstar(P.tidx)+273))*Fmw;
 
     % qui applica il decadimento (asintotico, quanto viene prodotto):
-    CNH4_UR             = CNH4_UR       + P.compounds(1,i)*B.KhUR*exp(-B.KhUR*tm);
+    %     CNH4_UR(i,j)=Cstar_UR(i)*KhUR*exp(-KhUR*tm);
+    CNH4_UR             = CNH4_UR       + P.compounds(1,i)*B.KhUR*exp(-B.KhUR*tm); % CHECK !!!
     % NH3 contribuisce per lo più nel momento della
     % somministrazione (per cui dopo non fai la sum):
     CNH3_UR             = CNH3_UR       + P.compounds(1,i)*B.KvUR*exp(-B.KvUR*tm);
@@ -131,9 +119,10 @@ end
 % P.tidx:P.tidx+1. essendo in g/cm2/d, l'input è già nella forma richiesta
 % dall'ADE.
 % Questo viene poi moltiplicato per P.dt nella stessa equazione.
-CNH4_SD                 = P.compounds(4,i);
-CNOx_SD                 = P.compounds(5,i);
+CNH4_SD                 = P.compounds(4,P.tidx);
+CNOx_SD                 = P.compounds(5,P.tidx);
 % Costruzione dei pool:
+%   -rinominare POOL meglio (togli SD)
 POOL_NH4_SD             = CNH4_UR + CNH4_ORG_rp + CNH4_ORG_sw + CNH4_SD;
 POOL_NO_SD              = CNOx_SD; % [g cm-2]
 % Una volta costituito, il POOL si assume distribuito per l'intero spessore
@@ -236,14 +225,15 @@ for sl=1:2
                                       -C2_dntf -C2_sink +CNO_pn(i);
             end
             
-            % è giusto aggiungere C1?? Risponde Antonio...
             C2_chem         = ( SsSk*P.dt + C1(i,sl)*P.teta(i) )/P.teta(i);
             C2_tot          = C2phys + C2_chem;
 
             if S.NX.Kf2(sl)==1
+                % P.teta is calculated on h at j-1, I think teta should be
+                % of the current j!!
                 C2out(i,sl) = ( C2phys*P.teta(i) + P.sh.dap(i)* ...
                             S.NX.Kf1(sl)*C1(i,sl) + SsSk*P.dt ) ...
-                                 / ( fnteta( W.hfc, P.sh, i ) + ...
+                                 / ( fnteta( h22(i), P.sh, i ) + ...
                                       P.sh.dap(i)*S.NX.Kf1(sl) );
             elseif C2_tot < 10^-9
                 C2phys      = 0;
@@ -271,13 +261,13 @@ for sl=1:2
             switch i
                 case P.nz
                     % do nothing! I'm exiting the loop
-                case P.nz-1 % LAST NODE
-                    fluxout = fluxbot;
+                case P.nz-1 % preparing to deal with LAST NODE
+                    fluxout = fluxbot;              % bot
                     C1top   = C1(i+0,sl);           % i-1
                     C1bot   = C1(i+1,sl);           % i+0        **particular case!
                     lambdaup= (P.CDElambda(i+1)+P.CDElambda(i+0))/2;
                     lambdalow=(P.CDElambda(i+1)+P.CDElambda(i+1))/2;% **particular case!
-                otherwise % OTHERS NODES
+                otherwise % preparing to deal with OTHERS NODES
                     fluxout = P.flux(i+2);          % i+1
                     C1top   = C1(i+0,sl);           % i-1
                     C1bot   = C1(i+2,sl);           % i+1

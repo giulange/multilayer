@@ -25,6 +25,7 @@ O.C2                            = NaN( P.nz, P.Nj, M.nvp, 2 );
 %                       [nodes x times x montecarlo]
 O.h22                           = NaN( P.nz, P.Nj, M.nvp );
 %   > O.fluxsurf    --> flusso al contorno superiore
+%                       Water flux through soil surface?
 %                       [1 x times x montecarlo]
 O.fluxsurf                      = NaN( 1, P.Nj, M.nvp );
 %   > O.fluxbot     --> flusso al contorno inferiore
@@ -33,3 +34,6 @@ O.fluxbot                       = NaN( 1, P.Nj, M.nvp );
 %   > O.runoff      --> runoff
 %                       [1 x times x montecarlo]
 O.runoff                        = NaN( 1, P.Nj, M.nvp );
+%   > O.pond        --> ponding
+%                       [1 x times x montecarlo]
+O.pond                          = NaN( 1, P.Nj, M.nvp );
