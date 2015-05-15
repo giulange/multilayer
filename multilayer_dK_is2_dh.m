@@ -2,8 +2,8 @@ function dK_is2_dh = multilayer_dK_is2_dh( dK_dh, method, K_is1, K_i, dz_is1, dz
 % dK_is2_dh = multilayer_dK_is2_dh( dK_dh, method, K_is1, K_i, dz_is1, dz_i, im1 )
 % 
 % NOTE
-%   This function is very similar to the "dkmean" function of SWAP (in
-%   headcalc.for).
+%   This function is very similar to the "dkmean" function of SWAP used in
+%   headcalc.for and implemented in headcalc.for.
 % 
 % DESCRIPTION
 %   This function computes the derivative of the internodal conductivity to
@@ -50,22 +50,24 @@ function dK_is2_dh = multilayer_dK_is2_dh( dK_dh, method, K_is1, K_i, dz_is1, dz
 %                   *true   --> dK_dh was computed as dK(i-1)/dh(i-1) or
 %                               dK(i+1)/dh(i+1)
 %                   *false  --> dK_dh was computed as dK(i)  /dh(i)
+%               SWAP-32 instead of a flag such as im1 calls the same
+%               function inverting the order of K's and dz's (compare for
+%               instance the contrasting computation of dkmean at lines 333
+%               and 336!!).
 % 
 % OUTPUTs
 %   dK_is2_dh:  Derivative of the internodal conductivity to the pressure
 %               head.
-
 %% main
 switch method
     case 1% arithmic mean
         % im1 does not affect this case!
-        dK_is2_dh = dK_dh /2;
-        
+        dK_is2_dh = dK_dh/2;
     case 2% weighted arithmic mean
         if im1
-            dK_is2_dh = dz_is1  ./(dz_is1 + dz_i) .* dK_dh;
+            dK_is2_dh = dz_is1  ./ (dz_is1 + dz_i) .* dK_dh;
         else
-            dK_is2_dh = dz_i    ./(dz_is1 + dz_i) .* dK_dh;
+            dK_is2_dh = dz_i    ./ (dz_is1 + dz_i) .* dK_dh;
         end
     case 3% geometric mean
         if im1
@@ -73,17 +75,14 @@ switch method
         else
             dK_is2_dh = (K_is1./K_i) .* dK_dh /2;
         end
-        
     case 4% weighted geometric mean
         if im1
             dK_is2_dh = dz_is1./(dz_is1 + dz_i) .* (K_i./K_is1).^(dz_i./(dz_is1+dz_i))  .* dK_dh;
         else
             dK_is2_dh = dz_i./(dz_is1 + dz_i)   .* (K_is1./K_i).^(dz_is1./(dz_is1+dz_i)).* dK_dh;
         end
-        
     otherwise
         error('You defined a wrong method to calculate the internodal conductivity')
-        
 end
 %% end
 return

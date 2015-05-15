@@ -1,6 +1,10 @@
 function [dKi_dhi,Ci,teta_pm1] = multilayer_dKi_dhi(h, Psh, i, Ksat)
 % [dKi_dhi,Ci,teta_pm1] = multilayer_dKi_dhi(h, Psh, i, Ksat)
 % 
+% NOTE
+%   This function is similar to the dhconduc function of SWAP-32, used in
+%   headcalc.for and implemented in functions.for.
+% 
 % DESCRIPTION
 %   This function computes the conductivity derivative to the pressure head
 %   (dKi_dhi) following the definition given in SWAP-32, Appendix 5, page

@@ -157,7 +157,7 @@ W.tolle1            = 1e-4;
 %                   During simulation this value is adapted to accomodate
 %                   the valorization of W.timestep (i.e. W.dtin =
 %                   W.dtin/W.timestep).
-%                   Default value is 1e-6 and range is [1e-6, 1e-2]
+%                   Default value is 1e-6 and range is [1e-7, 1e-2]
 W.dtmin             = 1e-6;
 % ------------------
 % dtmax:            Maximum timestep during simulation.
@@ -189,11 +189,12 @@ W.tp                = {
 %                   does not use the exact W.tp value.
 W.tptole            = 1e-02;
 % ------------------
-% 
 % multmin:          ??
 W.multmin           = 1.2;
+% ------------------
 % multmax:          ??
 W.multmax           = 0.7;
+% 
 % THE FOLLOWING PARAMETERS ARE SET IN CASE THE NEWTON-RAPHSON ALGORITHM IS
 % SELECTED (if W.wt_mod==1).
 % ------------------
@@ -231,14 +232,42 @@ W.maxbacktrack      = 3;
 %                           internodal conductivity, root, drain and
 %                           macropore).
 %                   Deafult is 1.0d-6.
-W.CritDevBalCp      = 1.0d-6;
+W.CritDevBalCp      = 1.0d-06;
 % ------------------
 % CritDevBalTot:    Critical water balance deviation for the whole soil
-%                   profile.
+%                   profile [cm d-1].
 %                   It is used to exit the Newton-Raphson iteration scheme,
 %                   which happens when the sum(Fi) is below CritDevBalTot.
 %                   Deafult is 1.0d-5.
-W.CritDevBalTot     = 1.0d-5;
+W.CritDevBalTot     = 1.0d-05;
+% ------------------
+% CritDevh1Cp:      Convergence criterium for Richards equation: relative
+%                   difference in pressure heads [-].
+W.CritDevh1Cp       = 1.0d-02;
+% ------------------
+% CritDevh2Cp:      Convergence criterium for Richards equation: absolute
+%                   difference in pressure heads [cm].
+W.CritDevh2Cp       = 1.0d-01;
+% ------------------
+% CritDevPondDt:    Maximum water balance error of ponding layer [cm].
+%                   Range is [1.0d-6, 0.1].
+W.CritDevPondDt     = 1.0d-04;
+% ------------------
+% SwkImpl:          Switch for explicit/implicit solution Richards equation
+%                   with hydraulic conductivity:
+%                       *0 = explicit solution
+%                       *1 = implicit solution
+W.SwkImpl           = 1;
+% ------------------
+% SwMacro:          Switch for simulation of macropore flow:
+%                       *0: no
+%                       *1: yes (not implemented yet)
+W.SwMacro           = 0;
+% ------------------
+% SwSnow:           Switch for simulation of snow accumulation and melt.
+%                       *0 = no
+%                       *1 = yes (not implemented yet)
+W.SwSnow            = 0;
 % -------------------------------------------------------------------------
 
 
@@ -454,24 +483,6 @@ W.tetal             = 0.0002;
 % bital:            ??
 %                   Default value is 15
 W.bital             = 15.0;
-% ------------------
-% hsurfmax:         Max potential allowed at soil surface (ponding at 0
-%                   node)
-W.hsurfmax          = -0.0;
-% pondmax:          Maximum amount of ponding on soil surface before runoff
-%                   starts. [cm]
-%                   Default value is 0.0 and range is [0.0, 2.0] for well
-%                   maintained agricultural fields.
-%                   [It should be the same of hsurfmax, which is used in
-%                   THOMAS algorithm]
-W.pondmax           = 1;% [cm]
-% rsro:             Drainage resistance for surface runoff. [0.001, 1.0]
-%                   See Eq. 4.2, page 71, SWAP-32 manual.
-W.rsro              =  0.5;
-% rsroExp:          Exponent in drainage equation of surface runoff.
-%                   [0.1, 10.0]
-%                   See Eq. 4.2, page 71, SWAP-32 manual.
-W.rsroExp           =  1.0;
 % -------------------------------------------------------------------------
 
 
@@ -490,7 +501,7 @@ W.rsroExp           =  1.0;
 %                       Depth [cm]      W.hin [?]
 %                       [0,botlim]      [-100,+100]
 W.hin               = [
-                        0               -1000
+                        0               -100
                       ];
 %                   -----------------------------------
 % -------------------------------------------------------------------------
@@ -533,13 +544,34 @@ W.hsurf             = NaN;
 %                       1:  condizioni al contorno superiore variabili
 %                           (Ctopbound_inp.txt)
 W.iCtopvar          = 1;
+% ------------------
+% hsurfmax:         Max potential allowed at soil surface (ponding at 0
+%                   node)
+W.hsurfmax          = -0.0;
+% ------------------
+% pondmax:          Maximum amount of ponding on soil surface before runoff
+%                   starts. [cm]
+%                   Default value is 0.0 and range is [0.0, 2.0] for well
+%                   maintained agricultural fields.
+%                   [It should be the same of hsurfmax, which is used in
+%                   THOMAS algorithm, and to PndmxMp used in SWAP-32]
+W.pondmax           = 1;% [cm]
+% ------------------
+% rsro:             Drainage resistance for surface runoff. [0.001, 1.0]
+%                   See Eq. 4.2, page 71, SWAP-32 manual.
+W.rsro              =  0.5;
+% ------------------
+% rsroExp:          Exponent in drainage equation of surface runoff.
+%                   [0.1, 10.0]
+%                   See Eq. 4.2, page 71, SWAP-32 manual.
+W.rsroExp           =  1.0;
 % -------------------------------------------------------------------------
 
 
 % -------------------------------------------------------------------------
 % (6) BOTTOM BOUNDARY CONDITIONS:
 % -------------------------------------------------------------------------
-% botbc:            Flag to set the bottom bounday condition in the
+% swbotb:           Switch to set the bottom bounday condition in the
 %                   Newton-Raphson implementation (this might substitute
 %                   ibotvar and ibbc).
 %                   This parameter must be set in case W.wt_mod==1.
@@ -555,7 +587,8 @@ W.iCtopvar          = 1;
 %                     6  Bottom flux equals zero
 %                     7  Free drainage of soil profile
 %                     8  Free outflow at soil-air interface
-W.botbc             = 7;
+%                   This parameter is used in SWAP-32 too.
+W.SwBotB            = 7;
 % ------------------
 % ibotvar:          Flag to set bottom boudary conditions:
 %                       *0  --> fixed
@@ -650,6 +683,7 @@ B.top.radi      = meteo_in.rad_int(1:end)';%        []
 % B.top.rain      = 0.1*meteo_in.rain_cum(1:end)';%   [cm d-1]
 B.top.rain      = -1*[ -0.961	-0.361	0	-1.325	-0.314	-0.489	-0.489	-0.472	-0.489	0	-0.911	-0.489	-0.489	-0.492	-0.389	-0.417	0	-0.407	0	-0.647	0	-0.833	0	-0.6	0	-0.69	0	-0.685	0	-0.518	0	0	-0.68	0	-0.661	0	-0.638	0	0	-0.578	0	-0.623	0	-0.516	-0.6	0	-0.52	0	-0.451	0	-0.643	0	-0.487	0	0	-0.526	0	-0.463	-0.5	0	-0.726	0	-0.611	0	-0.549	-0.7	0	-0.402	0	-0.598	0	-0.793	0	0	-0.537	0	0	-0.527	0	-0.5	0	-0.575	0	0	-0.499	0	-0.512	0	0	-0.499	0	-0.48	0	-0.508	0	0	-0.562	0	0	0	-0.518	0	0	-0.526	0	0	0	-0.463	0	0	-0.537	0	-0.5	0	-0.401	0	0	-0.544	0	0];%	0	-0.568	0	0	-0.405	0 ]';
 B.top.rain      = B.top.rain(1:120);
+% B.top.rain(4:8:50)      = 3.2;
 % ---
 
 B.top.tmax      = meteo_in.temp_max(1:end)';%       [°C]

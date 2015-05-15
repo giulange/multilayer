@@ -21,9 +21,9 @@ for mm=1:M.nvp
     % useful:
     P.dt                = W.dtin;
     P.time(1)           = P.dt;
-    P.rnf               = 0;
-    P.ktec              = 1;
     P.tidx_jm1          = floor(P.time(1))+1;
+    P.tidx              = floor(P.time(1))+1;
+    P.L                 = P.tidx > P.tidx_jm1;
 %     hFig = figure(98);clf
 %     set(hFig,'Name','Potentials & time increments','Position',[800, 20, 500, 800]),whitebg('k'),
 %% Hydraulic mapping :: soil layers --> soil grid nodes
@@ -51,31 +51,12 @@ for mm=1:M.nvp
         % coefficiente di mineralizzazione.
         P.sh.tetafc(inode)     = fnteta( W.hfc, P.sh, inode );
     end
+%% Init SoilWater State rates/variables
+    if W.wt_mod==1
+        multilayer_soilwater_init
+    end
 %% TIME simulation loop
     while P.time(P.j)<W.tmax
-%% update tidx & dt
-        % time element to extract from time-dependent parameter-vectors:
-        P.tidx              = floor(P.time(P.j))+1;
-%       use mod() to simulate the last piece of day till P.tidx, without
-%       updating input vars to the new DAY
-        
-        P.L                 = P.tidx > P.tidx_jm1;
-        % set the check upon the print times
-        if P.L
-%             waitbar( P.j / P.Nj )
-
-            % DELETE the following if to allow the printing time exactly at
-            % P.tidx time!! Be aware that the printing at the exact time is
-            % not ensured when the tridiagonal system cannot be solved at
-            % current dt (and the program use a different dt
-            if P.time(P.j)-P.tidx >= W.tptole && P.tidx-P.time(P.j-1) >= W.tptole
-                % Set the proper dt increment for current simulation to
-                % print at the time defined by user plus the tolerance.
-                dtprevious  = P.dt;
-                P.time(P.j) = P.tidx; %P.time(P.j) -dtprevious +P.dt;
-                P.dt        = P.tidx-P.time(P.j-1);
-            end
-        end
 %% calcolo valori potenziale osmotico per il tempo di simulazione (ERROR)
         if W.iosm==1 && V.ifs>3
             P.IEC               = 0;        % boolean: store if ktec incremented
@@ -116,10 +97,8 @@ for mm=1:M.nvp
                                     B.Ctop,P.C1,O.fluxsurf(1,P.j,mm),...
                                     O.fluxbot(1,P.j,mm), O.h22(:,P.j,mm) );
         end
-%% Update :: j, time, tidx
-        P.j         = P.j+1;
-        P.time(P.j) = P.time(P.j-1)+P.dt;
-        P.tidx_jm1  = P.tidx;
+%% Update :: { j, dt, time, tidx, flEndOfDay }
+        multilayer_timecontrol
     end% P.time(P.j)<W.tmax
 %% MONTECARLO --END--
 end% mm=1:M.nvp

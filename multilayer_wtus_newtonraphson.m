@@ -4,7 +4,7 @@
 % implemented in SWAP-32.
 %% Issues to solve
 %   (1) k for implicit calculation of conductivities
-%       a.  It is missing in the calculation of K (and maybe on other
+%       a.  It is missing in the calculation of P.K (and maybe on other
 %           related variables).
 %       b.  Check that all terms depending on k=0/1 are correctly defined
 %           in order to properly run each of the two flags (0 or 1).
@@ -13,117 +13,61 @@
 %           which they consider an opposite definition of z.
 %       b.  I have to understand the exact position of nodes with respect
 %           to compartment limits!!
-%       
-%   (3) define initial conditions!!
-%   (4) define top boundary conditions in different settings!!
-%   (5) define bottom boundary conditions in different settings!!
 %   (6) develop sinks, such as: root, drain and macroporosity.
-%% NOTES
-%   ??
-%% initialize
-% partial derivative of the macro-pore exchange to the pressure head:
-% dMacrPor    = zeros(P.nz,1); % must be developed!!!
-% Sink term must be developed:
-% sink        = zeros(P.nz,1); % must be developed!!!
-%% pre-elaboration (in/out this function?)
-% compute here or outside the function:
-% I know that Antonio uses P.dt as current dt, but we should avoid to write
-% user defined var. We simply update P.time(P.j) according to current
-% simulation conditions and then calculate dt using the line below (it's
-% advisable to write once in P.dt before to start new P.j):
-i       = 1:P.nz;
-i_i     = 2:P.nz-1;
-i_im1   = 1:P.nz-2;
-i_ip1   = 3:P.nz-0;
-dz      = P.nodes.dz;
-dz_im1  = P.nodes.dz(i_im1);
-dz_i    = P.nodes.dz(i_i);
-dz_ip1  = P.nodes.dz(i_ip1);
 %% **IMPLICIT LINEARIZATION OF HYDRAULIC CONDUCTIVITIES
-%   0   --> internodal conductivities refer to the old time level j-1
-%   1   --> internodal conductivities refer to the new time level j
-k       = 1;
-%% **INITIAL CONDITIONS on h and teta to solve first iteration on p=1
-
-% Initial pressure head at current j timestep
-if P.j==1           % initial condition
-    h_pm1       = P.hin;            %check that it is what you expect here!!
-    pond        = 0;%   -I reset pond state variable in case of non-convergence
-else
-    h_pm1       = O.h22(:,P.j-1,mm);	%check that it is what you expect here!!
-    pond        = O.pond(1,P.j-1,mm);%  -I reset pond state variable in case of non-convergence
+if W.SwkImpl==0
+% --- 0: internodal conductivities refer to the old time level j-1
+    k	= 0;
+elseif W.SwkImpl==1
+% --- 1: internodal conductivities refer to the new time level j
+    k	= 1;
 end
-% Volumic soil water content at former time level [-]
-%   -this term is the same during the whole Newton-Raphson iteration
-%    scheme (check if it is true!!)
-teta_jm1= fnteta( h_pm1, P.sh, 1:P.nz ); % check with Antonio!!
-
-% teta at first iteration p:
-%   -I have to differentiate teta_jm1 from teta_p !!!!! How?
-h_p             = h_pm1;
-teta_p          = fnteta( h_p, P.sh, 1:P.nz ); % check with Antonio!!
-% -------------------------------------------------------------------------
-%% Nodal Hydraulic Conductivity [K] <-- h_pm1
-% hydraulic conductivity, treated implictly (SWAP-32, Eq. 2.6, page
-% 28):
-% [Is it correct to treat the K in Eq. 2.6 as given below, for all "p"?]
-% NOTES:
-%   -if you transform ifc to a scalar, transform the
-%    multilayer_conductivity_node to be parametric on it (so you can any
-%    time decide whether to pass h o teta).
-x               = teta_jm1; % unsure !!!!!
-notTeta         = P.sh.ifc~=1 & P.sh.ifc~=3;
-x(notTeta)      = h_pm1(notTeta);
-K               = multilayer_conductivity_node( x, P.sh, i );
-clear x notTeta;
-%% root, drain, macropores [sink,macr]
-% ** sink **
-%      |--root--|   |--drain-|
-sink = zeros(P.nz,1) + zeros(P.nz,1);
-% **TEMPORARY SINK:
-for i=1:P.nz
-    if W.iveg==1 && W.itopvar==1
-        if P.Droot>0
-            P.dpt           = P.nodes.z(i);
-            if W.iosm==1 && V.ifs>3
-                P.op        = -P.ECstar(i)*360;
-            else
-                P.op        = 0;
-            end
-            if P.nodes.z(i) < P.Droot                    
-                %P.sink(i)   = fnsink( P.h1(i), P, W, V );
-                P.sink(i)   = fnsink_OLD(P.h1(i),P.dpt,P.op,P.Tp,V.hI,V.hII,V.hIIIH,V.hIIIL,V.hIV,V.hw50,V.pw1,V.hs50,V.ps1,V.aMH,V.bMH,P.Droot,V.ifs,V.rda,V.rdb,V.rdc,P.nz,V.ifg,V.zc,V.g0,V.gzc,V.Drf);
-            else
-                P.sink(i)   = 0;
-            end
-        else
-            P.sink(i)       = 0;
-        end
-    end
-end
-%      |--MaPo--| i.e. macroporosity
-macr = zeros(P.nz,1);
-%% Internodal Hydraulic Conductivity [Kim2,Kip2] <-- K
-multilayer_Kis2% requires: {K,dz}
+%% Nodal/Internodal Hydraulic Conductivity [P.K,P.Kim2,P.Kip2] <-- h,teta
+multilayer_Kis2
 %% top      boundary condition
 % --- you should decrease time step to dtmin if required by boundtop
 %     see SWAP-32, TimeControl(3):629
 multilayer_boundtop
-%% bottom   boundary condition -- put before while in wtus!!!
-multilayer_boundbot
-%% F-function [Fi #1]
-multilayer_Fi% requires: {Kim2,Kip2, h_p, teta_p,teta_jm1}
-% Fi(1)=Fi(2)-1.0d-2;
-% Fi(end)=Fi(end-1)+1.0d-2;
-% Estimate Fi inner product at init (sumFi2_0) & at "p"=0 (sumFi2_p):
-sumFi2_0 = sum(Fi.^2)*0.5;
-% To be able to enter while loop and use the full Newton step:
-% sumFi2_p = sumFi2_0+1;
+%% root, drain, macropores [sink,macr] -- to be developed!!
+% ** sink **
+% %      |--root--|   |--drain-|
+% sink = zeros(P.nz,1) + zeros(P.nz,1);
+% **TEMPORARY SINK:
+for ii=1:P.nz
+    if W.iveg==1
+        if V.Droot(P.tidx)>0
+            P.dpt           = P.nodes.z(ii);
+            if W.iosm==1 && V.ifs>3
+                P.op        = -P.ECstar(ii)*360;
+            else
+                P.op        = 0;
+            end
+            if P.nodes.z(ii) < V.Droot(P.tidx)                    
+                %P.sink(ii)   = fnsink( P.h1(ii), P, W, V );
+                P.sink(ii)   = fnsink_OLD(P.h_jm1(ii),P.dpt,P.op,ptra,V.hI,V.hII,V.hIIIH,V.hIIIL,V.hIV,V.hw50,V.pw1,V.hs50,V.ps1,V.aMH,V.bMH,V.Droot(P.tidx),V.ifs,V.rda,V.rdb,V.rdc,P.nz,V.ifg,V.zc,V.g0,V.gzc,V.Drf);
+            else
+                P.sink(ii)   = 0;
+            end
+        else
+            P.sink(ii)       = 0;
+        end
+    end
+end
+%      |--MaPo--| i.e. macroporosity
+if W.SwMacro
+    multilayer_macropore% --> output{ macr, ... }
+end
+%% pondrunoff
+multilayer_pondrunoff
+%% F-function [Fi #1] <---{P.Kim2,P.Kip2, P.h, P.teta,P.teta_jm1}
+multilayer_Fi
+% Estimate Fi inner product at init (sumFi2_pm1):
+sumFi2_pm1 = sum(Fi.^2)*0.5;
 %% Maximum No of iterations, according to P.dt [pmax]
 if P.dt == W.dtmin
-    pmax = W.maxit*2;
+    pmax    = W.maxit*2;
 else
-    pmax = W.maxit;
+    pmax    = W.maxit;
 end
 %% **Newton-Raphson iteration scheme [loop on "p"]
 for p=1:pmax
@@ -133,8 +77,8 @@ for p=1:pmax
     %   -[dKi_dhi]  (y) --> Conductivity derivative to the pressure head
     %   -[Ci]       (y) --> Capillary Capacity
     %   -[teta_pm1] (n) --> Moisture fraction
-    [dKi_dhi,Ci,~] = multilayer_dKi_dhi(h_pm1, P.sh, 1:P.nz, P.sh.k0);
-    multilayer_dFdh% requires: {dKi_dhi,K, Ci, h_pm1, Kim2,Kip2}
+    [dKi_dhi,Ci,~] = multilayer_dKi_dhi(P.h, P.sh, 1:P.nz, P.sh.k0);
+    multilayer_dFdh% requires: {dKi_dhi,P.K, Ci, P.h_jm1, P.Kim2,P.Kip2}
 %% dh_p --- tridiagonal system solution
     % Tri-diagonal system of equations (SWAP-32, Eq. 2.29, page 36):
     dh_p    = (dF_dh \ Fi); % note that inv(A)*b = A\b
@@ -158,46 +102,53 @@ for p=1:pmax
             % use the factmax to update the Newton step:
             % ...to be developed
             error('Develop this piece of code!!')
-            % h_p = ...
+            % P.h = ...
         else
 %% Newton-Raphson step :: at current lambda
             % regular case
-            h_p = h_pm1 - lambda*dh_p;
+            P.h = P.h_jm1 - lambda*dh_p;
         end
-%% theta
-%         [~,Ci,teta_p] = multilayer_dKi_dhi(h_p, P.sh, 1:P.nz, P.sh.k0);
+%% theta [!! update teta !!]
         % Moisture at "p" iteration:
-        teta_p = fnteta( h_p, P.sh, 1:P.nz );
+        %   -check that teta is updated outside headcalc in SWAP-32, so
+        %    that I have to do the same!! <-- VERY IMPORTANT
+        P.teta = fnteta( P.h, P.sh, 1:P.nz );
 %% implicit [k=1]
         if k==1
-%% Nodal Hydraulic conductivity [K]
-            % IMPORTANT: I have to change ifc being a scalar and the
-            % multilayer_conductivity_node must be parametric on it!!!!
-            K = multilayer_conductivity_node( teta_p, P.sh, i );
-%% Internodal Hydraulic Conductivity [Kim2,Kip2]
-            multilayer_Kis2% requires: {K}
+%% root extraction
+            %multilayer_rootextraction
+%% Nodal/Internodal Hydraulic Conductivity [P.K,P.Kim2,P.Kip2] <-- h,teta
+            multilayer_Kis2
         end
-%% top      boundary condition -- to be activated?
-        % the actual pond here is the one calculated at p-1 (or outside
-        % the p-loop if p=1)
+%% top boundary condition
+        if W.SwMacro, QMpLatSsSav = QMpLatSs; end
         multilayer_boundtop
+%% macropore
+        fl_unsat_ok(3) = 0;
+        if W.SwMacro && ~fl_unsat_ok(3)
+            multilayer_macropore
+        elseif W.SwMacro && fl_unsat_ok(3)
+            QMpLatSs = QMpLatSsSav;
+        end
+%% pondrunoff
+        multilayer_pondrunoff
 %% F-function [Fi #2]
         % The original headcalc.for/SWAP-32 implementation uses the same
-        % piece of code for computing the F-function here (Fi*2) and before
-        % the Newton-Raphson iteration scheme (which was called Fi*1).
-        % The only differences (what Fi*2 has and not Fi*1) are at lines:
+        % piece of code for computing the F-function here (Fi #2) and before
+        % the Newton-Raphson iteration scheme (which was called Fi #1).
+        % The only differences (what Fi #2 has and not Fi #1) are at lines:
         %   -(193,195)
         %   +(445,450,452,453,454)
-        multilayer_Fi% requires: {Kim2,Kip2, h_p, teta_p,teta_jm1}
+        multilayer_Fi% requires: {P.Kim2,P.Kip2, P.h, P.teta,P.teta_jm1}
         % Estimate Fi inner product at current "p" (sumFi_p):
         sumFi2_p    = sum(Fi.^2)*0.5;
         % *IMPORTANT
         %   -BackTrack block exit criterion:
-        maxFi_p     = abs(max(Fi));
+        maxFi_p     = max(abs(Fi));
         %   -Newton-Raphson block exit criterion:
         sumFi_p     = sum(Fi); % [cm d-1]
 %% break of BackTrack block
-        if sumFi2_p<sumFi2_0 || maxFi_p<W.CritDevBalCp
+        if sumFi2_p<sumFi2_pm1 || maxFi_p<W.CritDevBalCp
             bt_breaked = true;
             break
         end
@@ -212,11 +163,48 @@ for p=1:pmax
     if ~bt_breaked
         % do something
     end
-%% break of Newton-Raphson block
-    if abs(sumFi_p) <= W.CritDevBalTot
-        nr_breaked = true;
-        break
+%% break Newton-Raphson iteration?
+    nr_breaked  = true;
+% --- APPLY PERFORMANCE CRITERIA PER COMPARTMENT
+% --- Test for water balance deviation of soil compartments
+    flNonConv1 = abs(Fi)>W.CritDevBalCp;
+    if sum(flNonConv1), nr_breaked=false; end
+% --- Test for change of pressure head
+    flNonConv2 = abs(P.h_jm1)<1.0d0 & abs(P.h-P.h_jm1)>W.CritDevh2Cp;
+    if sum(flNonConv2), nr_breaked=false; end
+    flNonConv2 = abs(P.h-P.h_jm1)./abs(P.h_jm1)>W.CritDevh1Cp;
+    if sum(flNonConv2), nr_breaked=false; end
+    
+% --- Test for water balance of ponding layer
+    if ~isflux
+        P.qtop = -P.Kim2(1)*((hsurf - P.h(1))/(0.5*P.nodes.dz(1))+1.0d0);
+        if nr_breaked && ~W.SwMacro
+            deviat = pond - pond_jm1 + reva*P.dt - (nraidt+nird+melt)*P.dt ...
+                    - runon*P.dt  +  runoff  - P.qtop * P.dt;
+            if abs(deviat) > W.CritDevPondDt
+                flnonconv3 = true;
+                nr_breaked = false;
+           end
+        end
     end
+    if W.SwMacro% always FALSE untill I develop it
+        deviat = pond - pond_jm1 + reva*P.dt - (nraidt+nird+melt)*P.dt ...
+                    - runon*P.dt  +  runoff  - P.qtop * P.dt; %...
+                  % + ArMpSs*(nraidt+nird+melt)*P.dt + QMpLatSs;
+        if abs(deviat) > W.CritDevPondDt
+            flnonconv3 = true;
+            nr_breaked = false;
+        end            
+        error('To be completed!')
+    end
+    
+% --- Critical water balance deviation for the whole soil profile
+    if abs(sumFi_p) > W.CritDevBalTot
+        nr_breaked = false;
+    end
+    
+% --- EXIT WITH SUCCESS !!
+    if nr_breaked, break, end
 %% what to do with this??
     % %     % *****maybe this must be solved after solving h at "p+1"******
     % %     % First order approximation of the Taylor expansion to calculate the
@@ -228,23 +216,13 @@ for p=1:pmax
 %% update loop
     % h at previous iteration-step "p-1" when I go to next iteration-step
     % "p":
-    h_pm1       = h_p;
+    P.h_jm1     = P.h;
     % sum of Fi used in the backtrack block at step "p+1":
-    sumFi2_0    = sumFi2_p;
+    sumFi2_pm1  = sumFi2_p;
 end% p
-
-
-if nr_breaked%  convergence has been reached!
-    % *STORE current pressure head:
-    O.h22(:,P.j,mm) = h_p;
-    
-    % *RISE TIMESTEP:   ***to be corrected***
-    % To speedup simulation convergence
-   if (p<=3)      ,     P.dt = min(P.dt*W.dtfactor,W.dtmax); end
-   if (p>=W.maxit-2),   P.dt = max(P.dt*W.dtfactor,W.dtmin); end
-
+%% non-convergent
 % --- see TimeControl(3):612
-else%           convergence could not be reached!
+if ~nr_breaked%     convergence could not be reached!
     my_dtfactor         = 3;
     n_noconv            = n_noconv +1;
     % *REDUCE TIMESTEP:
@@ -269,12 +247,23 @@ else%           convergence could not be reached!
     else
         error('Something wrong in setting P.dt!')
     end
-%     P.iter(:,P.j) = [p;nr_breaked;fl_noconv;n_noconv;iL;bt_breaked];
-    % --- reset soil state variables of time = j-1
-    %h           = hm1;
-    %theta       = thetm1;
-    %kmean(numnod+1) = k(numnod);
-    %gwl         = gwlm1;
+    
+%         P.h = P.h_jm1;
+%         P.teta = P.teta_jm1;
+% %         kmean(nz+1)=k(nz);
+% %         gwl = gwl_jm1;
+%         
+    % RESTORE:
+    if ~fl_noconv%  if dt can be reduced
+% --- reset soil state variables of time = j-1
+        P.h             = P.h_jm1;
+        P.teta          = P.teta_jm1;
+        %kmean(numnod+1) = k(numnod);
+        %gwl         = gwlm1;
+        pond            = pond_jm1;
+    else%           if dt cannot be reduced
+        % do nothing to hold current state as good one!
+    end
 end
 %% clean
-clear i i_i i_im1 i_ip1 dz_i dz dzp_ddg dz_im1 dz_ip1
+clear ii my_dtfactor

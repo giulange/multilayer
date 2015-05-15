@@ -10,13 +10,12 @@
 %   ...more hydrological details on what is performed...
 %   It can handle a fixed and a variable compartment height.
 %   ...other characteristics of the model implemented.
-
 %% init
 % Newton-Raphson/Thomas was broken by an exit condition:
 nr_breaked  = false;
 % Newton-Raphson/Thomas convergence not possible at this timestep:
 fl_noconv   = false;
-% Newton-Raphson/Thomas number of non-convergences:
+% Newton-Raphson/Thomas number of non-convergences producing dt reduction:
 n_noconv    = 0;
 %% Module for water transport
 switch W.wt_mod
@@ -35,7 +34,7 @@ switch W.wt_mod
             wtus_thomas_OLD_fn
             % [P.iter(:,P.j-5:P.j);P.time(P.j-5:P.j)-P.time(P.j-6:P.j-1)]
         end
-        
+        P.iter(1:4,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
         % *RUNOFF [& runon?]
         O.runoff(1,P.j,mm) = W.qsurf-O.fluxsurf(1,P.j,mm);
 
@@ -61,15 +60,41 @@ switch W.wt_mod
         end
     case 1
 %% *NEWTON-RAPHSON
+        % bottom boundary condition:
+        multilayer_boundbot
+                
+        % Richard's equation solution by means of Newton-Raphson:
         while ~nr_breaked && ~fl_noconv
+            % SAVE:
+            %   - This SAVE must be put inside or outside the while? -->
+            %     ask to Antonio Coppola!!
+            %       (1) If it is inside I hold the h from previous
+            %           iteration step to start a new iteration based on a
+            %           smaller dt (when no convergence was reached).
+            %       (2) If it must be put outside, then I have to update
+            %           h, teta and pond at both j-1 and j to the values
+            %           stored at previous j (i.e. h=O.h22(:,P.j-1,mm) and
+            %           so on).
+            % Pressure head at former time level [cm]
+            P.h_jm1 = P.h;
+            % Volumic soil water content at former time level [-]
+            P.teta_jm1 = P.teta;
+            %gwl_jm1 = gwl;
+            pond_jm1 = pond;
+            
             multilayer_wtus_newtonraphson
         end
+                
+        % STORE:
         P.iter(:,P.j)           = [p;nr_breaked;fl_noconv;n_noconv;iL;bt_breaked];
-        O.h22(:,P.j,mm)         = h_p;%     *store current PRESSURE HEAD!
-        O.runoff(1,P.j,mm)      = runoff;%  *store current RUNOFF!
-        O.fluxsurf(1,P.j,mm)    = qtop;%    *store current QTOP!
-        O.pond(1,P.j,mm)        = pond;%    *store current PONDING!
-        % where is QBOT ??
+        O.h22(:,P.j,mm)         = P.h;%     *store current PRESSURE HEAD [cm]
+        O.runoff(1,P.j,mm)      = runoff;%  *store current RUNOFF [cm?]
+        O.fluxsurf(1,P.j,mm)    = P.qtop;%  *store current QTOP [cm d-1]
+        O.pond(1,P.j,mm)        = pond;%    *store current PONDING [cm]
+        O.fluxbot(1,P.j,mm)     = P.qbot;%	*store current bottom water flux [cm d-1]
+        
+        % REGISTER: {K,K1s2,flux,macropore}
+        multilayer_soilwater_register
 end
 %% PLOT -- tmp
 % figure(88),whitebg('k')
@@ -86,4 +111,4 @@ end
 %  subplot(413),hold on,plot( P.iter(1,1:P.j) ),scatter(P.j,n_noconv,'x'),hold off,legend('No iterations','Location','NW')
 %  subplot(414),plot( [W.dtin,diff(P.time(1:P.j))] ),legend('\fontsize{18}\deltat','Location','NW')
 %% clean
-clear nr_breaked fl_noconv n_noconv
+clear p nr_breaked fl_noconv n_noconv iL bt_breaked

@@ -191,7 +191,7 @@ P.flux(P.nz)                = -P.kond(P.nz) * ((P.h1(P.nz-1)-W.hbot) ...
                               /(P.nodes.dz(P.nz+1)+P.nodes.dz(P.nz))+1);
 
 P.flux(2:P.nz-1)            = -P.kond(2:P.nz-1).*( ...
-                              ( P.h1((2:P.nz-1)-1)-P.h1((2:P.nz-1)+1) ) ...
+                              ( P.h1((1:P.nz-2))-P.h1((3:P.nz)) ) ...
                               ./ (2*P.nodes.dz(2:P.nz-1))+1 );
 if W.itbc==1 || W.qsurf==P.Emax
     P.flux(1)               = -P.kond(1) * ((W.hsurf-P.h1(2)) /(1.5*P.nodes.dz(1))+1);
@@ -200,7 +200,7 @@ else
                               P.flux(2)*(1/(0.5*(P.nodes.dz(1)+P.nodes.dz(2)))) ...
                               ) / ( (1/(0.5*P.nodes.dz(1)))+ 1/(0.5*(P.nodes.dz(1)+P.nodes.dz(2))) );
 end
-    
+
 %% calcolo flussi all'interfaccia -- check with Antonio (+2?)
 % Definiamo l'obiettivo, poi valutiamo come implementare.
 % P.k = 2:W.nlay;
@@ -275,19 +275,19 @@ for p = 0:W.maxit
 end
 
 if nr_breaked
-    P.iter(:,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
-    % Copied by HYDRUS(?):
-    if p<=3
-        P.dt                = W.multmin * P.dt;
-        if P.dt>W.dtmax
-            P.dt            = W.dtmax;
-        end
-    elseif and(p>=4,p<=W.maxit)
-        P.dt                = W.multmax * P.dt;
-        if P.dt<W.dtmin
-            P.dt            = W.dtmin;
-        end
-    end
+%     P.iter(1:4,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
+%     % Copied by HYDRUS(?):
+%     if p<=3
+%         P.dt                = W.multmin * P.dt;
+%         if P.dt>W.dtmax
+%             P.dt            = W.dtmax;
+%         end
+%     elseif and(p>=4,p<=W.maxit)
+%         P.dt                = W.multmax * P.dt;
+%         if P.dt<W.dtmin
+%             P.dt            = W.dtmin;
+%         end
+%     end
 else
     n_noconv            = n_noconv +1;
     dtprevious          = P.dt;
@@ -303,21 +303,7 @@ else
         % If we go back to the previous integer, we must update:
         P.tidx          = floor(P.time(P.j))+1;
 
-% --- useless        
-        % Ripristino flussi o potenziali nel caso di
-        % annullamento dell'iterazione per riduzione del
-        % P.dt.
-        % Serve solo nel caso di P.LL=1, quando il ripristino
-        % non può avvenire con le righe uguali poste alla fine
-        % del blocco per la simulazione del trasporto di
-        % soluti.
-%         if W.itbc==0
-%             W.qsurf     = B.top.hqstar(P.tidx);
-%         elseif and(W.itbc==1,P.rnf==0)
-%             W.hsurf     = B.top.hqstar(P.tidx);
-%         elseif and(W.itbc==1,P.rnf==1)
-%             W.qsurf     = B.top.hqstar(P.tidx);
-%         end
+% --- useless
         % Ripristino tempo di lettura delle EC.data nel caso in
         % cui l'annullamento della simulazione avvenga a
         % cavallo del cambio di EC.t
@@ -332,49 +318,4 @@ else
         % ...what to do next? --> we should do something
 
     end
-    P.iter(:,P.j)       = [p;nr_breaked;fl_noconv;n_noconv];
-
-% % %     % Migliorare soluzione, o comunque salvare in M.nnc l'eventuale
-% % %     % simulazione saltata
-% % %     if P.dt==W.dtmin
-% % %         % *CONTINUE WITHOUT CONVERGENCE:
-% % %         fl_noconv = true;% is non-convergent?
-% % %         % ...what to do next? --> we should do something
-% % %     elseif P.dt>W.dtmin
-% % %         n_noconv = n_noconv +1;
-% % %         P.iter(:,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
-% % %         P.dt            = P.dt/3;
-% % %         P.time(P.j)     = P.time(P.j)-2*P.dt;
-% % %         if P.dt<=W.dtmin
-% % %             P.time(P.j) = P.time(P.j) - P.dt + W.dtmin;
-% % %             P.dt        = W.dtmin;
-% % %         end
-% % %         
-% % %         % If we go back to the previous integer, we must update:
-% % %         P.tidx              = floor(P.time(P.j))+1;
-% % % 
-% % % % --- useless        
-% % %         % Ripristino flussi o potenziali nel caso di
-% % %         % annullamento dell'iterazione per riduzione del
-% % %         % P.dt.
-% % %         % Serve solo nel caso di P.LL=1, quando il ripristino
-% % %         % non può avvenire con le righe uguali poste alla fine
-% % %         % del blocco per la simulazione del trasporto di
-% % %         % soluti.
-% % % %         if W.itbc==0
-% % % %             W.qsurf     = B.top.hqstar(P.tidx);
-% % % %         elseif and(W.itbc==1,P.rnf==0)
-% % % %             W.hsurf     = B.top.hqstar(P.tidx);
-% % % %         elseif and(W.itbc==1,P.rnf==1)
-% % % %             W.qsurf     = B.top.hqstar(P.tidx);
-% % % %         end
-% % %         % Ripristino tempo di lettura delle EC.data nel caso in
-% % %         % cui l'annullamento della simulazione avvenga a
-% % %         % cavallo del cambio di EC.t
-% % %         if W.iosm==1 && V.ifs>3 && P.IEC==1
-% % %             P.ktec      = P.ktec-1;
-% % %         end
-% % % % --- useless
-% % %         
-% % %     end
 end

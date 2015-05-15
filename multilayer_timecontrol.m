@@ -1,36 +1,41 @@
+%% update: { j, dt, time, tidx, flEndOfDay }
+
+% -0-
+P.tidx_jm1              = P.tidx;
+
 % -1-
-if nr_breaked%  convergence has been reached!
+if P.iter(2,P.j)%  convergence has been reached!
 % --- RISE   TIMESTEP
-    if (p<=3)        ,  P.dt = min(P.dt*W.dtfactor,W.dtmax); end
+    if (P.iter(1,P.j)<=3),      P.dt = min(P.dt*W.dtfactor,W.dtmax); end
 % --- REDUCE TIMESTEP
-    if (p>=W.maxit-2),  P.dt = max(P.dt*W.dtfactor,W.dtmin); end    
+    if (P.iter(1,P.j)>=W.maxit),P.dt = max(P.dt/W.dtfactor,W.dtmin); end    
 end
 
 % -2-
-if P.flEndOfDay% at previous dt I closed a DAY!
-% --- I have to deal with the START-OF-DAY
-    P.dt                = W.dtin;
-    P.flEndOfDay        = true;
+P.j                     = P.j+1;
 
+% -3-
+if P.flEndOfDay% at previous j I closed a DAY!
+% --- I deal with the START-OF-DAY
+    P.flEndOfDay        = false;
+    P.dt                = max(P.dt,sqrt(W.dtmin*W.dtmax));%W.dtin
+    P.time(P.j)         = P.time(P.j-1)+P.dt;
+    P.tidx              = floor(P.time(P.j))+1;
 else
-% --- I have to deal with the END-OF-DAY
-    P.tidx              = floor(P.time(P.j-1)+P.dt)+1;
+% --- am I at the END-OF-DAY?
+    P.time(P.j)         = P.time(P.j-1)+P.dt;
+    P.tidx              = floor(P.time(P.j))+1;
     P.L                 = P.tidx > P.tidx_jm1;
+% --- I deal with the END-OF-DAY:
     if P.L% if END-OF-DAY
     % --- set P.dt to simulate the last piece of current day
         P.flEndOfDay    = true;
-        P.time(P.j)     = P.tidx;
-        P.dt            = P.tidx-P.time(P.j-1);
+        P.time(P.j)     = P.tidx_jm1;
+        P.dt            = P.time(P.j)-P.time(P.j-1);
         % otherwise last dt of current DAY would use tidx of next DAY!
         P.tidx          = P.tidx - 1;
     end
-end
-
-% -3-
-P.j                     = P.j+1;
-P.time(P.j)             = P.time(P.j-1)+P.dt;
-P.tidx_jm1              = P.tidx;
-            
+end          
 %% Code to be revised for inclusion
 
 % -4-

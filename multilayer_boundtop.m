@@ -23,15 +23,11 @@ Ke              = P.Ke(         P.tidx );
 runon           = 0;%           [cm]
 % as P.runon
 
-%   -pressure head of air near the soil surface [see soilwater.for]:
-%   - you can implement it's calculation as done in multilayer by Coppola!
-hatm            = -2.75d+05;%   [cm??]
-
 % *MANAGEMENT VARIABLES
 % irri:         Amount of irrigation.
-%               It is equal to SWAP-32 "nird", which is net irrigation
+%               It is equal to SWAP-32 "gird", which is gross irrigation
 %               depth.
-irri            = 1;%           [cm]
+irri            = 0;%           [cm]
 % it should be V.irri
 
 % develop!!
@@ -58,32 +54,17 @@ isua            = 0;%           [-]
 
 % isflux:       Is flux (and not pressure head) prescribed at the soil
 %               surface?
-% isflux          = false;
 %% init
 fl_isRunoff         = false;
-if P.j==1
-    pond_jm1        = 0;%                   [cm]
-else
-    pond_jm1        = O.pond(1,P.j-1,mm);%  [cm]
-end
 %% *WATER at TOP BOUNDARY
-
-% S O I L   E V A P O R A T I O N  -- [boundtop.for]
-%   -moisture fraction (volumetric water content)
-tetatm              = fnteta( hatm, P.sh, 1 ); % NOTE add hysteresis in fnteta
-%   -hydraulic conductivity of top boundary
-Ksurf               = multilayer_conductivity_node(tetatm,P.sh,1);
-%   -hydraulic internodal conductivity at [(top boundary) vs (first
-%    compartment)]:
-K1atm               = multilayer_conductivity_internode(Ksurf,K(1),W.Kmeth,dz(1),dz(1));
-%   -Darcian maximum evaporation rate:
-%      °see also: Eq. 73, FAO paper 56, Chapter 7, page 144 of pdf
-%       ATTENTION: check that the sign of Emax is in accordance with what
-%       is required after when you use it (and remember that the code was
-%       taken from SWAP).
-%      °this multiplies the h gradient by internodal conductivity, which on
-%       a general basis computes a flux (Emax is a flux).
-Emax                = -2*K1atm * ( (hatm-h_p(1))/dz(1) ) -K1atm;
+% --- determine whether the precipitation falls as rain or snow
+%       -fPrecNoSnow:   Ratio rain (excl. snow and rain on snow) / gross
+%                       rain flux in case of detailed rainfall data [-].
+if W.SwSnow
+    % ...to be developed!
+else
+    fPrecNoSnow = 1;
+end
 
 % Amount of rainfall interception during current day [cm] [meteoinput.for]:
 %   -check that unit of measurements of aintc is fine!
@@ -110,6 +91,22 @@ else
         bvhhb       = min(bvhhb,1.0d0);
         % See Eq. 2.52, page 54, SWAP-32 manual:
         aintc       = V.avhhb*lai*(1.0d0-(1/(1.0d0+(bvhhb*rpd)/(V.avhhb*lai))));
+    end
+end
+
+% --- Divide interception into rain part and irrigation part [meteoinput.for]
+%       -nraida:    Daily average net precipitation flux [cm d-1]
+%       -nird:      Net irrigation depth [cm]
+if aintc < 0.001d0
+    nraida          = rain;% - gsnow - snrai;
+    nird            = irri;
+else
+    if ~isua
+        nraida      = rain - aintc*(rain/(rain+irri));
+        nird        = irri-aintc*(irri/(rain+irri)) ;
+    else
+        nraida      = rain-aintc;
+        nird        = irri;
     end
 end
 
@@ -149,7 +146,7 @@ if ew0 < 0.0001d0
     wfrac           = 0.0d0;
 else
     % nested max(.,0) and min(.,1) functions force wfrac in range [0, 1]:
-    wfrac           = max( min(aintc/ew0, 0.1d0), 0.0d0 );
+    wfrac           = max( min(aintc/ew0, 1.0d0), 0.0d0 );
 end
 
 % Potential soil evaporation [cm] [meteoinput.for]:
@@ -165,17 +162,41 @@ if (pond > 1.0d-10) && (es0 > 1.0d-08)
 end
 % Potential crop transpiration [mm] [meteoinput.for]:
 %   -requires {wfrac,et0,peva}
+%   -ptra enters sink definition!
 ptra                = max( 1.0d-9, et0*(1.0d0-wfrac)-peva );
+
+% --- ACTUAL RAINFLUX [meteoinput.for]
+%       -graidt:    Gross precipitation flux during iteration timesteps
+%                   [cm d-1]
+%       -nraidt:    Net precipitation flux during iteration timesteps
+%                   [cm d-1]
+%       -aintcdt:   Interception flux during iteration timesteps
+%                   [cm d-1]
+if nraida > 1.0d-05
+    fInterception   = nraida / rain;
+    if aintc < 1.0d-05, fInterception = 1; end
+    rainflux        = fPrecNoSnow * rain;
+    netrainflux     = fInterception * rainflux;
+% --- Set actual gross and net rainflux and interception on TIMESTEP basis
+    graidt          = rainflux;
+    nraidt          = netrainflux;
+    aintcdt         = rainflux-netrainflux;
+else
+    fInterception   = 1;
+    graidt          = 0;
+    nraidt          = 0;
+    aintcdt         = 0;
+end
 
 % Reduction of soil evaporation on daily basis [reduceva.for]
 if pond >= 1.0d-10 || B.top.revameth==0
 % ---   in case of ponding no reduction ---
 %   peva        = peva;
     t_DRY           = 0.0d0;% t_DRY :: is ldwet of SWAP
-else
+elseif B.top.revameth==1
 % ---   reduction with Black model ---
     % reset t_DRY to zero:
-    if (rain+irri) > B.top.Rsigni
+    if (nraida+nird) > B.top.Rsigni
         t_DRY       = 0.0d0;
     end
     t_DRY           = t_DRY + 1.0d0;
@@ -185,15 +206,34 @@ else
 %   ...to be implemented!!
 end
 
+% S O I L   E V A P O R A T I O N  -- [boundtop.for]
+%   -moisture fraction (volumetric water content)
+tetatm              = fnteta( hatm, P.sh, 1 ); % NOTE add hysteresis in fnteta
+%   -hydraulic conductivity of top boundary
+Ksurf               = multilayer_conductivity_node(tetatm,P.sh,1);
+%   -hydraulic internodal conductivity at [(top boundary) vs (first
+%    compartment)]:
+K1atm               = multilayer_conductivity_internode(Ksurf,P.K(1),W.Kmeth,P.nodes.dz(1),P.nodes.dz(1));
+%   -Darcian maximum evaporation rate:
+%      °see also: Eq. 73, FAO paper 56, Chapter 7, page 144 of pdf
+%       ATTENTION: check that the sign of Emax is in accordance with what
+%       is required after when you use it (and remember that the code was
+%       taken from SWAP).
+%      °this multiplies the h gradient by internodal conductivity, which on
+%       a general basis computes a flux (Emax is a flux).
+Emax                = -2*K1atm * ( (hatm-P.h(1))/P.nodes.dz(1) ) -K1atm;
+
 % [boundtop.for]:
 % reduced soil evaporation rate:
 %   -peva is reduced to maximum Darcy flux
 reva                = min( peva, max(0.0d0, Emax) );
 
-% H I G H   A T M O S P H E R I C   D E M A N D
+% H I G H   A T M O S P H E R I C   D E M A N D  -- [boundtop.for]
+%       -melt:      Melting rate.
+%                   [cm d-1]
 % I expect that reva is greater than all other terms (q0 is negative) when
 % no rain or irrigation are given:
-q0                  = (rain+irri+melt) * (1-ArMpSs) + runon -reva;
+q0                  = (nraidt+nird+melt) * (1-ArMpSs) + runon -reva;
 % the negative q0 is here set as positive, and pond from previous step is
 % accounted for in the balance of flux throw ground surface (q1):
 q1                  = -q0 - pond_jm1/P.dt;
@@ -204,7 +244,7 @@ q1                  = -q0 - pond_jm1/P.dt;
 if q1>=0 && q1>Emax
     isflux          = false;%   a pressure head is prescribed at soil surface!
     hsurf           = hatm;%    pressure head of air is applied to top boundary
-    Kim2(1)         = K1atm;%   internodal conductivity based on hatm
+    P.Kim2(1)       = K1atm;%   internodal conductivity based on hatm
     pond            = 0;%       ponding is null
     runoff          = 0;%       runoff is null
 else
@@ -212,82 +252,36 @@ else
     % ksatfit:  saturated hydraulic conductivity (L/T) for each soil layer
     %           (fitted on VG based on lab data)
     %Ks = rfcp(1)*ksatfit(1) + (1.0d0-rfcp(1))*hconode_vsmall;
-    Ks              = P.sh.k0(1); % --> ASK ANTONIO
-    K1max           = multilayer_conductivity_internode( Ks, K(1), W.Kmeth, dz(1), dz(1) );
+    K1max           = multilayer_conductivity_internode( P.sh.k0(1), P.K(1), W.Kmeth, P.nodes.dz(1), P.nodes.dz(1) );
     
     % Check whether application of flux=q1 will yield a pressure head >0 at
     % ground surface. If not: flux boundary condition is valid!
-    h0              = h_p(1) - 0.5*dz(1)*(q1/K1max+1.0d0);
+    h0              = P.h(1) - 0.5*P.nodes.dz(1)*(q1/K1max+1.0d0);
     if h0<1.0d-6%   FLUX controlled
         isflux      = true;
         hsurf       = 0.0d0;
-        Kim2(1)     = 0.0d0;
-        pond = 0.0d0;
+        P.Kim2(1)   = 0.0d0;
+        pond        = 0.0d0;
         runoff      = 0.0d0;
-        qtop        = q1;
+        P.qtop      = q1;
     else%           HEAD controlled (ponding occurs!)
         isflux      = false;
-        Kim2(1)     = k1max;
+        P.Kim2(1)   = K1max;
         fl_isRunoff = true; % runoff potential possible
-        % --- calculate max value of pond(=h0max) without runoff
-        p1          = K1max/(0.5*dz(1)) * P.dt;
+% --- calculate max value of pond(=h0max) without runoff
+        p1          = K1max/(0.5*P.nodes.dz(1)) * P.dt;
         p2          = 1.0d0/(p1+1.0d0);
-        h0max       = p2 * ( pond_jm1 + q0*P.dt - K1max*P.dt + p1*h_p(1) );
-    end
-end
-%% ponding & runoff & hsurf
-if fl_isRunoff
-    % [boundtop.for,PONDRUNOFF]
-    % --- check whether h0max, the max value of pond, yields a runoff
-    if h0max <= W.pondmax
-        runoff      = 0.0d0;
-        pond        = h0max;
-        hsurf       = pond;
-
-    else
-        runoff = multilayer_runoff(h0max,W.pondmax,W.rsro,W.rsroExp,P.dt);
-        % if no runoff occurs: first estimation of pond is OK
-        if runoff <= 1.0d-06
-            pond	= h0max;
-            hsurf   = pond;
-
-        % if exponent of empirical equation (4.2 SWAP-32) is less then 1:
-        elseif (runoff >= 1.0d-06) && (W.rsroExp-1 < 1.0d-6)
-            p1      = K1max/0.5*dz(1) * P.dt;
-            p2      = 1 / ( p1 + 1 + P.dt/W.rsro );
-            pond    = p2 * ( pond_jm1 + q0*P.dt - K1max*P.dt + p1*h_p(1) + P.dt*W.rsro*W.pondmax );
-            hsurf   = pond;
-            runoff  = multilayer_runoff(pond,W.pondmax,W.rsro,W.rsroExp,P.dt);
-
-        % if runoff occurs: find values for pond and runoff iteratively
-        else
-            p1      = K1max/0.5*dz(1) * P.dt;
-            p2      = 1 / ( p1 + 1 );
-            % estimation of maximum ponding: ignoring runoff
-            h0max   = p2 * (pond_jm1 + q0*P.dt - K1max*P.dt + p1*h_p(1));
-            h0min   = 0;
-            fl_pond_conv = false;
-            for ii = 1:30
-                pond    = 0.5*(h0max+h0min);
-                runoff  = multilayer_runoff(pond,W.pondmax,W.rsro,W.rsroExp,P.dt);
-                h0      = p2 * (pond_jm1 + q0*P.dt - K1max*P.dt + p1*h_p(1) - runoff);
-                if pond-h0 < 1.0d-06
-                    hsurf = pond;
-                    fl_pond_conv = true;
-                    break
-                else
-                    if h0 > pond
-                        h0min = pond;
-                    else
-                        h0max = pond;
-                    end
-                end
-            end
-            % if convergence has not been reached: proceed with final value
-            if fl_pond_conv == false
-                pond    = 0.5*(h0max+h0min);
-                hsurf   = pond;
-                runoff  = multilayer_runoff(pond,W.pondmax,W.rsro,W.rsroExp,P.dt);
+        h0max       = p2 * ( pond_jm1 + q0*P.dt - K1max*P.dt + p1*P.h(1) );
+% --- in case of macropores, calc. potential overland flow into macrop.: QMpLatSs
+        if W.SwMacro
+            if h0max > W.pondmax% PndmxMp is used in SWAP-32
+                RsRoMp = (h0max + (nraidt+nird+melt)*ArMpSs*P.dt) / KsMpSs;
+                p2Mp = 1 / (p1 + 1 + P.dt*RsRoMp);
+                pond = (h0max - W.pondmax) * p2Mp/p2;
+                QMpLatSs = min( QMpLatSs, h0max );
+                if QMpLatSs < 1.0d-07, QMpLatSs = 0; end
+            else
+                QMpLatSs = 0;
             end
         end
     end
