@@ -1,15 +1,16 @@
-function Ki = multilayer_conductivity_node( x, Psh, i )
+function Ki = multilayer_conductivity_node( theta, Psh, nodes )
 % Ki = multilayer_conductivity_node( x, P.sh, ii )
 % 
 % DESCRIPTION
-%   It computes nodal (non-saturated?) hydraulic conductivity.
+%   It computes nodal (non-saturated?) hydraulic conductivity as a function
+%   of theta.
 %   It can work on single node or multiple nodes according to how the i
 %   variable is passed in input.
 %   This function has similar scope of "hconduc" function in functions.for,
 %   SWAP-32 implementation.
 % 
 % INPUTs
-%   x:      It can be:
+%   teta:	It can be:
 %               -teta   contenuto d'acqua, with ifc = { 1 OR 3 }
 %               -h      potenziale
 %                        *ifc=2 (DURNER);
@@ -20,9 +21,9 @@ function Ki = multilayer_conductivity_node( x, Psh, i )
 %   Psh:    The set of hydraulic characteristics of the soil grid at all
 %           nodes.
 % 
-%   i:      Current node(s) of soil grid.
+%   nodes:	Current node(s) of soil grid.
 %           Two different usages of the function are possible according to
-%           the value assigned to i:
+%           the value assigned to it:
 %               *one value  --> Capacity at current i node of the soil
 %                               grid.
 %               *multiple   --> Capacity at all nodes passed in i.
@@ -30,84 +31,91 @@ function Ki = multilayer_conductivity_node( x, Psh, i )
 % OUTPUTs
 %   Ki:     Nodal conductivity at compartment(s) i.
 
-%% main
-Ki                  = NaN(length(i),1);
-if ~length(x)==1
-    x               = x(i);
+%% const
+h_crit          = -1.0d-2;
+hconode_vsmall  = 1.0d-10;
+%% read Psh at nodes
+thetar          = Psh.tetar(nodes);
+thetas          = Psh.tetas(nodes);
+alfamg          = Psh.alfvg(nodes);
+ksatfit         = Psh.k0(nodes);
+n               = Psh.en(nodes);
+m               = 1-1./Psh.en(nodes);
+lambda          = Psh.bita(nodes);
+h_enpr          = Psh.h_enpr(nodes);
+%% output
+Ki              = NaN(numel(nodes),1);
+%% main :: modified Van Genuchten
+
+% if ksatexm > 0.0d0
+%     flksatexm       = true;
+%     ksatexm         = cofg(10)
+%     relsatthr       = cofg(11)
+%     ksatthr         = cofg(12)
+% else
+%     flksatexm       = false;
+% end
+
+for ii = 1:numel(nodes)
+
+    relsat              = (theta(ii)-thetar(ii))/(thetas(ii)-thetar(ii));
+
+    % if flksatexm && relsat > relsatthr
+    %     term1   = (relsat-relsatthr)/(1.0d0-relsatthr);
+    %     Ki = term1 * ksatexm + (1.0d0-term1) * ksatthr;
+    % else
+        if h_enpr(ii) > h_crit
+            if relsat < 0.001d0
+                Ki(ii)  = hconode_vsmall;
+            elseif relsat > (1.0d0 - 1.0d-6)
+                Ki(ii)  = ksatfit(ii);
+            else
+                term1   = ( 1.0d0-relsat^(1.0d0/m(ii)) ) ^ m(ii);
+                Ki(ii)  = ksatfit(ii)*(relsat^lambda(ii))* ...
+                            (1.0d0-term1)*(1.0d0-term1);
+            end
+        else
+    % --- For modified VanGenuchten model:
+
+    % ---   now compute thetam
+            thetam      = thetar(ii)+(thetas(ii)-thetar(ii)) * ...
+                        ((1.0d0 + (abs(alfamg(ii)*h_enpr(ii))) ^ n(ii) ) ^ m(ii));
+
+            if relsat < 0.001d0
+                Ki(ii)  = hconode_vsmall;
+            else
+                if theta(ii) >= thetam
+                    Ki(ii) = ksatfit(ii);
+                else
+                    relsatm = (theta(ii)-thetar(ii))/(thetam-thetar(ii));
+                    relsat1 = (thetas(ii) - thetar(ii))/(thetam-thetar(ii));
+                    term1   = ( 1.0d0 - (relsatm)^ (1.0d0/m(ii)) ) ^ m(ii);
+                    term2   = ( 1.0d0 - (relsat1)^ (1.0d0/m(ii)) ) ^ m(ii);
+                    Ki(ii)  = ksatfit(ii)*(relsat^lambda(ii)) * ...
+                                ((1.0d0-term1)/(1.0d0-term2)) ^ 2.d0;
+                end
+            end
+        end
+        Ki(ii) = min(Ki(ii),ksatfit(ii));
+    % end
 end
-for a = 1:length(i)
-    ii              = i(a);
 
-    switch Psh.ifc(ii)
-
-        case 1% water content
-            m           = 1-1/Psh.en(ii);
-            % Eq. 2.7 of SWAP 32 manual, page 28:
-            Se          = (x(a)-Psh.tetar(ii))/(Psh.tetas(ii)-Psh.tetar(ii));
-            if Se>0.99999
-                Ki(a)   = Psh.k0(ii);
-            else
-                % Eq. 2.6 of SWAP 32 manual, page 28:
-                % unsaturated hydraulic conductivity:
-                Ki(a)   = Psh.k0(ii) * Se^Psh.bita(ii) * (1-(1-Se^(1/m))^m)^2;
-            end
-
-        case 3% water content
-            Se          = (x(a)-Psh.tetar(ii))/(Psh.tetas(ii)-Psh.tetar(ii));
-            if Se>0.99999
-                Ki(a)   = Psh.k0(ii);
-            else
-                Ki(a)   = Psh.k0(ii)*(Psh.fi(ii) * ...
-                              exp(-Psh.bita(ii)*(Psh.tetas(ii)-x(a))) + ...
-                             (1.-Psh.fi(ii))*exp(-Psh.bita2(ii)*(Psh.tetas(ii)-x(a))));
-            end
-
-        case 2% potential (Durner)
-            m           = 1-1/Psh.en(ii);
-            em2         = 1-1/Psh.en2(ii);
-            sef1        = (1+(Psh.alfvg(ii)*abs(x(a)))^Psh.en(ii))^-m;
-            sef2        = (1+(Psh.alfvg2(ii)*abs(x(a)))^Psh.en2(ii))^-em2;
-            Se          = Psh.fi(ii)*sef1+(1-Psh.fi(ii))*sef2;
-            if Se>0.99999
-                Ki(a)   = k0;
-            else 
-                kr_macr = Psh.fi(ii)*Psh.alfvg(ii)*(1-(1-sef1^(1/m))^m);
-                kr_micr = (1-Psh.fi(ii))*Psh.alfvg2(ii)*(1-(1-sef2^(1/em2))^em2);
-                Ki(a)   = Psh.k0(ii)*(Psh.fi(ii)*sef1 + ...
-                             (1-Psh.fi(ii))*sef2)^Psh.bita(ii)* ( (kr_macr+kr_micr)/...
-                             (Psh.fi(ii)*Psh.alfvg(ii)+(1-Psh.fi(ii))*Psh.alfvg2(ii)) )^2;
-            end
-
-        case 4% potential (R&S interacting distributions)
-            em2         = 1-1/Psh.en2(ii);
-            sef1        = (1+Psh.alfrs(ii)*abs(x(a)))*exp(-Psh.alfrs(ii)*abs(x(a)));
-            sef2        = (1+(Psh.alfvg2(ii)*abs(x(a)))^Psh.en2(ii))^-em2;
-            Se          = Psh.fi(ii)*sef1 + (1-Psh.fi(ii))*sef2;
-            if Se>0.99999
-                Ki(a)   = Psh.k0(ii);
-            else
-                gmacr   = Psh.alfrs(ii) * exp(-Psh.alfrs(ii)*abs(x(a)));        
-                gmicr   = Psh.alfvg2(ii)*Psh.en2(ii) * betainc(sef2^(1/em2),1,em2);        
-                gmacr_0 = Psh.alfrs(ii);
-                gmicr_0 = Psh.alfvg2(ii)*Psh.en2(ii);
-                Ki(a)   = Psh.k0(ii)*Se^Psh.bita(ii) * ...
-                              (Psh.fi(ii)*gmacr+(1-Psh.fi(ii))*gmicr) / ...
-                              (Psh.fi(ii)*gmacr_0+(1-Psh.fi(ii))*gmicr_0);
-            end
-
-        case 5% potential (R&S independent distributions [see R&S 1993 eq.21])
-            em2         = 1-1/Psh.en2(ii);
-            sef1        = (1+Psh.alfrs(ii)*abs(x(a)))*exp(-Psh.alfrs(ii)*abs(x(a)));
-            sef2        = (1+(Psh.alfvg2(ii)*abs(x(a)))^Psh.en2(ii))^-em2;
-            Se          = Psh.fi(ii)*sef1 + (1-Psh.fi(ii))*sef2;
-            if Se>0.99999
-                Ki(a)   = Psh.k0macr(ii);
-            else 
-                kr_macr = sef1^Psh.bita(ii)*exp(-2*Psh.alfrs(ii)*abs(x(a)));
-                kr_micr = sef2^Psh.bita(ii)*(1.-(1.-sef2^(1/em2))^em2)^2;
-                Ki(a)   = Psh.k0macr(ii)*kr_macr+Psh.k0(ii)*kr_micr;
-            end
-    end
-end
+% --- in case of frost conditions
+% if swfrost==1
+%     Ki = Ki * rfcp + hconode_vsmall * (1.0d0 - rfcp);
+% end
+%% cutted code
+% m           = 1-1/Psh.en(ii);
+% if x(a) < Psh.h_enpr
+%     Sc      = 1./(1+abs(Psh.alfvg(ii).*Psh.h_enpr(ii)).^Psh.en(ii)).^m;
+%     Se      = ( 1./(1+abs(Psh.alfvg(ii).*x(a)).^Psh.en(ii)).^m  ) ./ Sc;
+% elseif x(a) >= Psh.h_enpr
+%     Se      = 1;
+% end
+% if Se < 1
+%     Ki(a)   = Psh.k0(ii) * Se.^Psh.bita(ii).* ( (1-(1-(Se*Sc)^(1/m))^m) / (1-(1-(Sc)^(1/m))^m) )^2;
+% elseif Se>=1
+%     Ki(a)   = Psh.k0(ii);
+% end
 %% end
 return

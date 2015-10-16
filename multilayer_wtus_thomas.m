@@ -3,34 +3,34 @@
 %% lettura h iniziali o aggiornamento h -- check at the end!
 % lettura h iniziali e aggiornamento h
 if P.j==1
-    P.h1                    = P.hin;
+    P.h_jm1                 = P.hin;
 else
-    P.h1                    = O.h22(:,P.j-1,mm);
+    P.h_jm1                 = O.h22(:,P.j-1,mm);
 end
 %% teta, cond, cap, sink :: all nodes
 % calc. param. ritenz. e conducib. ai vari nodi nei diversi strati
 for i=1:P.nz
     % Ritenzione:
-    P.teta(i)               = fnteta( P.h1, P.sh, i );
+    P.teta(i)               = fnteta( P.h_jm1, P.sh, i );
     % Conducibilità:
     if P.sh.ifc(i)==1 || P.sh.ifc(i)==3
-        P.kond(i)           = multilayer_conductivity_node( P.teta(i),P.sh, i );
+        P.K(i)           = multilayer_conductivity_node( P.teta(i),P.sh, i );
     else
-        P.kond(i)           = multilayer_conductivity_node( P.h1(i),  P.sh, i );
+        P.K(i)           = multilayer_conductivity_node( P.h_jm1(i),  P.sh, i );
     end
     % Capacità:
-    P.cap(i)                = multilayer_capacity(  P.h1,  P.sh, i );
+    P.cap(i)                = multilayer_capacity(  P.h_jm1,  P.sh, i );
     % Sink:
     if W.iveg==1 && W.itopvar==1
-        if P.Droot>0
+        if P.Droot(P.tidx)>0
             P.dpt           = P.nodes.z(i);
             if W.iosm==1 && V.ifs>3
                 P.op        = -P.ECstar(i)*360;
             else
                 P.op        = 0;
             end
-            if P.nodes.z(i) < P.Droot                    
-                P.sink(i)   = fnsink( P.h1(i), P, W, V );
+            if P.nodes.z(i) < P.Droot(P.tidx)                    
+                P.sink(i)   = fnsink( P.h_jm1(i), P, W, V );
             else
                 P.sink(i)   = 0;
             end
@@ -40,9 +40,9 @@ for i=1:P.nz
     end
 end
 %% FLUX :: TOP boundary
-P.km_max(P.j)               = (P.kond(1)+P.sh.k0(1))/2;
+P.km_max(P.j)               = (P.K(1)+P.sh.k0(1))/2;
 % per infiltrazione:
-P.fluxsurf_max(P.j)         = -P.km_max(P.j)*((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);% Darcy
+P.fluxsurf_max(P.j)         = -P.km_max(P.j)*((W.hsurfmax-P.h_jm1(1))/(P.nodes.dz(1)/2)+1);% Darcy
 % ponding --> W.hsurfmax = [0,5] cm, pressione che si sviluppa nel nodo
 % fittizio.
 
@@ -53,21 +53,21 @@ switch W.itbc% 0:flux; 1:potential;
             P.teta_hsurf    = fnteta( W.hsurf, P.sh, 1 );
 
             if or(P.sh.ifc==1,P.sh.ifc==3)
-%                 P.km(P.j)   = (P.kond(1) + multilayer_conductivity_node(P.teta_hsurf,P.sh,1))/2;
+%                 P.km(P.j)   = (P.K(1) + multilayer_conductivity_node(P.teta_hsurf,P.sh,1))/2;
                 P.km(P.j)   = multilayer_conductivity_internode( ...
                                 multilayer_conductivity_node(P.teta_hsurf,P.sh,1), ...
-                                P.kond(1), W.Kmeth );
+                                P.K(1), W.Kmeth );
             else
-%                 P.km(P.j)   = (P.kond(1) + multilayer_conductivity_node(W.hsurf,P.sh,1))/2;
+%                 P.km(P.j)   = (P.K(1) + multilayer_conductivity_node(W.hsurf,P.sh,1))/2;
                 P.km(P.j)   = multilayer_conductivity_internode( ...
                                 multilayer_conductivity_node(W.hsurf,P.sh,1), ...
-                                P.kond(1), W.Kmeth );
+                                P.K(1), W.Kmeth );
             end
-            P.Emax          = -P.km(P.j) * ((W.hsurf-P.h1(1))/(P.nodes.dz(1)/2)+1);
+            P.Emax          = -P.km(P.j) * ((W.hsurf-P.h_jm1(1))/(P.nodes.dz(1)/2)+1);
 
             if P.Ep<P.Emax
                 W.qsurf     = P.Ep;
-                W.hsurf     = (3*P.h1(1)-P.h1(2))/2;
+                W.hsurf     = (3*P.h_jm1(1)-P.h_jm1(2))/2;
                 O.fluxsurf(1,P.j,mm) = W.qsurf; % porta fuori (ma prima controlla che sia qsurf e non hsurf!!
             else
                 W.qsurf     = P.Emax;
@@ -75,10 +75,10 @@ switch W.itbc% 0:flux; 1:potential;
             end
             
         elseif W.qsurf<0
-            W.hsurf         = (3*P.h1(1)-P.h1(2))/2;
+            W.hsurf         = (3*P.h_jm1(1)-P.h_jm1(2))/2;
             O.fluxsurf(1,P.j,mm) = W.qsurf;
         elseif and(W.qsurf==0,W.iveg==0)
-            W.hsurf         = (3*P.h1(1)-P.h1(2))/2;
+            W.hsurf         = (3*P.h_jm1(1)-P.h_jm1(2))/2;
             O.fluxsurf(1,P.j,mm) = W.qsurf;
         end
 
@@ -98,23 +98,23 @@ switch W.itbc% 0:flux; 1:potential;
     case 1
         if P.rnf==1
             W.hsurf         = W.hsurfmax;
-            P.km_max(P.j)   = (P.kond(1)+P.sh.k0(1))/2;
-            P.fluxsurf_max(P.j)     = -P.km_max(P.j) * ((W.hsurfmax-P.h1(1))/(P.nodes.dz(1)/2)+1);
+            P.km_max(P.j)   = (P.K(1)+P.sh.k0(1))/2;
+            P.fluxsurf_max(P.j)     = -P.km_max(P.j) * ((W.hsurfmax-P.h_jm1(1))/P.nodes.disnod(1)+1);
             O.fluxsurf(1,P.j,mm)    = P.fluxsurf_max(P.j);
         elseif P.rnf==0
             P.teta_hsurf    = fnteta( W.hsurf, P.sh, 1 );
             if or(P.sh.ifc==1,P.sh.ifc==3)
-%                 P.km(P.j)   = ( P.kond(1) + multilayer_conductivity_node(P.teta_hsurf,P.sh,1) )/2;
+%                 P.km(P.j)   = ( P.K(1) + multilayer_conductivity_node(P.teta_hsurf,P.sh,1) )/2;
                 P.km(P.j)   = multilayer_conductivity_internode( ...
                                 multilayer_conductivity_node(P.teta_hsurf,P.sh,1), ...
-                                P.kond(1), W.Kmeth );
+                                P.K(1), W.Kmeth );
             else
-%                 P.km(P.j)   = ( P.kond(1) + multilayer_conductivity_node(W.hsurf,P.sh,1) )/2;
+%                 P.km(P.j)   = ( P.K(1) + multilayer_conductivity_node(W.hsurf,P.sh,1) )/2;
                 P.km(P.j)   = multilayer_conductivity_internode( ...
                                 multilayer_conductivity_node(W.hsurf,P.sh,1), ...
-                                P.kond(1), W.Kmeth );
+                                P.K(1), W.Kmeth );
             end
-            O.fluxsurf(1,P.j,mm)    = -P.km(P.j) * ((W.hsurf-P.h1(1))/(P.nodes.dz(1)/2)+1);
+            O.fluxsurf(1,P.j,mm)    = -P.km(P.j) * ((W.hsurf-P.h_jm1(1))/P.nodes.disnod(1)+1);
         end
         
     otherwise
@@ -123,50 +123,50 @@ end
 %% FLUX :: BOTTOM boundary
 if W.ibbc==2
     %                                    |   ==0  |
-    W.hbot                  = P.h1(P.nz)-(W.grad-1)*P.nodes.dz(P.nz+1);
+    W.hbot                  = P.h_jm1(P.nz)-(W.grad-1)*P.nodes.dz(P.nz+1);
 end
 
 %         switch W.ibbc
 %             case 0        
 if W.ibbc==0
     O.fluxbot(1,P.j,mm)     = W.qbot;
-    W.hbot(P.j)             = (P.h1(P.nz)-P.h1(P.nz-1))*...
-                               P.nodes.dz(P.nz+1)/P.nodes.dz(P.nz)+P.h1(P.nz);
+    W.hbot(P.j)             = (P.h_jm1(P.nz)-P.h_jm1(P.nz-1))*...
+                               P.nodes.dz(P.nz+1)/P.nodes.dz(P.nz)+P.h_jm1(P.nz);
 %             case {1,2}
 elseif or(W.ibbc==1,W.ibbc==2)
     P.teta_hbot             = fnteta( W.hbot, P.sh, P.nz);
     if or(P.sh.ifc==1,P.sh.ifc==3)
-%         P.kp(P.nz)          = ( P.kond(P.nz) + multilayer_conductivity_node(P.teta_hbot,P.sh,P.nz) )/2;
-        P.kp(P.nz)          = multilayer_conductivity_internode( P.kond(P.nz), ...
+%         P.kp(P.nz)          = ( P.K(P.nz) + multilayer_conductivity_node(P.teta_hbot,P.sh,P.nz) )/2;
+        P.kp(P.nz)          = multilayer_conductivity_internode( P.K(P.nz), ...
                                 multilayer_conductivity_node(P.teta_hbot,P.sh,P.nz), W.Kmeth );
     else
-%         P.kp(P.nz)          = ( P.kond(P.nz) + multilayer_conductivity_node(W.hbot,P.sh,P.nz) )/2;
-        P.kp(P.nz)          = multilayer_conductivity_internode( P.kond(P.nz), ...
+%         P.kp(P.nz)          = ( P.K(P.nz) + multilayer_conductivity_node(W.hbot,P.sh,P.nz) )/2;
+        P.kp(P.nz)          = multilayer_conductivity_internode( P.K(P.nz), ...
                                 multilayer_conductivity_node(W.hbot,P.sh,P.nz), W.Kmeth );
     end
-    O.fluxbot(1,P.j,mm)     = -P.kp(P.nz) * ((P.h1(P.nz)-W.hbot)/P.nodes.dz(P.nz+1)+1);
+    O.fluxbot(1,P.j,mm)     = -P.kp(P.nz) * ((P.h_jm1(P.nz)-W.hbot)/P.nodes.dz(P.nz+1)+1);
 end
 %% FLUX :: INTERMEDIATE nodes -- errors? check with Antonio
 % Check errors for dz(?):
-%   > at P.flux(1,.)        --> dz(1)           *error
+%   > at P.q(1,.)        --> dz(1)           *error
 %       - why h1(2) and not h1(1)?? as in SWAP, for instance
-%   > at P.flux(P.nz,.)     --> dz(end)         *error
+%   > at P.q(P.nz,.)     --> dz(end)         *error
 %       - denominator: +1?
-%   > at P.flux(2:P.nz-1,.) --> dz(2:P.nz-1)    *good!
+%   > at P.q(2:P.nz-1,.) --> dz(2:P.nz-1)    *good!
 
-P.flux(1)                   = -P.kond(1) * ((W.hsurf-P.h1(2)) /(1.5*P.nodes.dz(1))+1);
-P.flux(P.nz)                = -P.kond(P.nz) * ((P.h1(P.nz-1)-W.hbot) ...
+P.q(1)                   = -P.K(1) * ((W.hsurf-P.h_jm1(2)) /(1.5*P.nodes.dz(1))+1);
+P.q(P.nz)                = -P.K(P.nz) * ((P.h_jm1(P.nz-1)-W.hbot) ...
                               /(P.nodes.dz(P.nz+1)+P.nodes.dz(P.nz))+1);
-P.flux(2:P.nz-1)            = -P.kond(2:P.nz-1).*( ...
-                              ( P.h1((2:P.nz-1)-1)-P.h1((2:P.nz-1)+1) ) ...
+P.q(2:P.nz-1)            = -P.K(2:P.nz-1).*( ...
+                              ( P.h_jm1((2:P.nz-1)-1)-P.h_jm1((2:P.nz-1)+1) ) ...
                               ./ (2*P.nodes.dz(2:P.nz-1))+1 );
 %% calcolo flussi all'interfaccia -- check with Antonio (+2?)
 % Definiamo l'obiettivo, poi valutiamo come implementare.
 % P.k = 2:W.nlay;
 
 % why +2 and not +1??
-P.flux(P.nodes.cumsum(2:W.nlay)) = 2/3 * P.flux(P.nodes.cumsum(2:W.nlay)-1) +...
-                                   1/3 * P.flux(P.nodes.cumsum(2:W.nlay)+2);
+P.q(P.nodes.cumsum(2:W.nlay)) = 2/3 * P.q(P.nodes.cumsum(2:W.nlay)-1) +...
+                                   1/3 * P.q(P.nodes.cumsum(2:W.nlay)+2);
 %% flussi cumulati in superficie ==> not used
 %         if P.j==1
 %             fluxsurfcum(P.j)        = O.fluxsurf(1,P.j,mm)*P.dt;
@@ -177,20 +177,20 @@ P.flux(P.nodes.cumsum(2:W.nlay)) = 2/3 * P.flux(P.nodes.cumsum(2:W.nlay)-1) +...
 %% flussi cumulati ai nodi intermedi ==> not used -- error on P.j
 %         for i=1:P.nz
 %             if P.j==1
-%                 fluxcum(i,1)        = P.flux(i,1)*P.dt;
+%                 fluxcum(i,1)        = P.q(i,1)*P.dt;
 %             else
-%                 fluxcum(i,P.j)      = P.flux(i,P.j)*P.dt + ...
+%                 fluxcum(i,P.j)      = P.q(i,P.j)*P.dt + ...
 %                                       fluxcum(i,P.j-1);
 %             end
 %         end
 %% soluzione del sistema tridiagonale (see WARNING) -- obiettivo?
 % Obiettivo? h al j+1
-P.h2                        = fnsyst( P, W );% al j+1
+P.h                        = fnsyst( P, W );% al j+1
 %% calcolo capacita' metodo implicito (vedi Karvonen) -- capacità 1/2
 for i=1:P.nz
-    if abs(P.h2(i)-P.h1(i))>W.tolle1
-        P.cap(i)            = ( fnteta(P.h2,P.sh,i) - ...
-                            fnteta(P.h1,P.sh,i) ) / ( P.h2(i)-P.h1(i) );
+    if abs(P.h(i)-P.h_jm1(i))>W.tolle1
+        P.cap(i)            = ( fnteta(P.h,P.sh,i) - ...
+                            fnteta(P.h_jm1,P.sh,i) ) / ( P.h(i)-P.h_jm1(i) );
     end
 end
 % fnsyst con il nuovo P.cap:
@@ -199,22 +199,22 @@ O.h22(:,P.j,mm)             = fnsyst( P, W );
 %% calcolo capacita' al tempo medio -- obiettivo?
 % W.tolle1=tolleranza per la convergenza della capacità
 % P.niter                     = 0; % Nj per convergenza capacità.
-% while max(abs(O.h22(:,P.j,mm)-P.h2))>W.tolle1
+% while max(abs(O.h22(:,P.j,mm)-P.h))>W.tolle1
 for p = 0:W.maxit
     
-    if max(abs(O.h22(:,P.j,mm)-P.h2))<W.tolle1
+    if max(abs(O.h22(:,P.j,mm)-P.h))<W.tolle1
         nr_breaked          = true;
         break
     end
 
     for i=1:P.nz            
-        if abs(O.h22(i,P.j,mm)-P.h2(i))>W.tolle1        
+        if abs(O.h22(i,P.j,mm)-P.h(i))>W.tolle1        
             P.cap(i)        = ( fnteta(O.h22(:,P.j,mm),P.sh,i) - ...
-                                fnteta(P.h1,P.sh,i) ) / ( O.h22(i,P.j,mm)-P.h1(i) );
+                                fnteta(P.h_jm1,P.sh,i) ) / ( O.h22(i,P.j,mm)-P.h_jm1(i) );
         end
     end
     % store previous potentials:
-    P.h2                    = O.h22(:,P.j,mm);
+    P.h                    = O.h22(:,P.j,mm);
     % compute potentials at new cap:
     O.h22(:,P.j,mm)         = fnsyst( P, W );
 

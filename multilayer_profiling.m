@@ -10,7 +10,7 @@ profile on -history
 try
     
     % run program to profile:
-    multilayer_run.m
+    multilayer_run
 
     % stop profiling
     profile off

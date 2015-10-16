@@ -17,14 +17,15 @@ function [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf
 %       MATERIA ORGANICA
 %               --> MINERALIZZAZIONE    (pedice 'm')    --> NH4
 % 
-%   For nitrification, immobilization and denitrification see She et al.,
-%   2005. An Inverse Method to Estimate the Source-Sink Term in the Nitrate
+%   For nitrification, immobilization and denitrification see Shi et al.,
+%   2007. An Inverse Method to Estimate the Source-Sink Term in the Nitrate
 %   Transport Equation. SSSAJ Soil Sci. Soc. Am. J. 71:26-34
 % 
 %   Remember that sl accounts for the type of solute:
 %       sl=1    --> NH_FR
 %       sl=2    --> NO_FR
-%   while P.tidx accounts for Ctopboundary input (see B).
+%   while P.tidx accounts for time-dependent inputs on a integer-time
+%   length (e.g. day).
 % 
 % 
 % INPUTS
@@ -36,6 +37,7 @@ function [C2out,P] = multilayer_transport_solute_N_ade( P, W, S, B, C1, fluxsurf
 % 
 % 
 % OUTPUTS
+%   C2out:  
 %   P:      Newly created variables are stored in P and returned to the
 %           main function of the program. (which variables?)
 
@@ -51,7 +53,7 @@ S1                      = NaN(P.nz,2);
 C2out                   = NaN(P.nz,2);
 %% parte adsorbita
 % concentrazione in fase adsorbita (S Freundlich):
-if W.ads==1
+if ~isfield(W,'ads') || W.ads==1
     S1(:,1)             = S.NX.Kf1(1)*C1(:,1).^S.NX.Kf2(1);
     S1(:,2)             = S.NX.Kf1(2)*C1(:,2).^S.NX.Kf2(2);
 else
@@ -149,7 +151,7 @@ end
 for sl=1:2
     jj                  = 1;
     fluxin              = fluxsurf;
-    fluxout             = P.flux(2);
+    fluxout             = P.q(2);
     C1top               = P.Cinput(sl);
     C1bot               = C1(2,sl);
     lambdaup            = (P.CDElambda(1)+P.CDElambda(1))/2; % = P.CDElambda(1);
@@ -157,35 +159,19 @@ for sl=1:2
     
     while jj<=W.nlay
         for i=P.nodes.cumsum(jj)+1:P.nodes.cumsum(jj+1)
-%             % Antonio: we define all X in S.X in input file, why we
-%             % need to set a value here (only at first node of each layer
-%             % exept the first one).
-%             % ...there is something not good in these statements...
-%             if i == P.nodes.cumsum(jj+1)
-%                 % WHY we need to define them here! We already loaded them
-%                 % in config!!
-%                 P.CDElambda(i+1)  = P.CDElambda(i); % USED but I modified at the bottom of file. 
-%                 P.CDEKnitr(i+1)   = P.CDEKnitr(i);  % UNUSED at nz+1
-%                 P.CDEKimmob(i+1)  = P.CDEKimmob(i); % UNUSED at nz+1
-%                 P.CDEKdenitr(i+1) = P.CDEKdenitr(i);% UNUSED at nz+1
-%             end
 
             % MORE GENERAL VERSION:
-            fluxup      = ((P.flux(i)+fluxin )/2);
-            fluxlow     = ((P.flux(i)+fluxout)/2);
-            C1up        = (C1(i,sl)+C1top)/2;
-            C1low       = (C1(i,sl)+C1bot)/2;
+            fluxup      = (P.q(i)+fluxin )/2;
+            fluxlow     = (P.q(i)+fluxout)/2;
+            C1up        = (C1(i,sl)+C1top)/2; % C1top del nodo corrente!!
+            C1low       = (C1(i,sl)+C1bot)/2; % C1bot del nodo corrente!!
 
             % The following is the discretised Eq. for Cphys (tracer):
             % ...
-            C2one       = (fluxup*C1up - fluxlow*C1low)/P.nodes.dz(i);
-            if i==P.nodes.cumsum(jj)+1
-                C2two   = lambdaup*abs(fluxup)*(C1top-C1(i,sl)) / P.nodes.dz(1);
-            else                
-                C2two   = lambdaup*abs(fluxup)*(C1top-C1(i,sl)) / P.nodes.dz(i);
-            end
-            C2three     = lambdalow*abs(fluxlow)*(C1(i,sl)-C1bot)/P.nodes.dz(i);
-            C2_phys     = P.dt*(-C2one + ((C2two-C2three)/P.nodes.dz(i)));
+            C2one       = (fluxup*C1up - fluxlow*C1low)/P.nodes.dz(i);                % [mg] of solute * [cm-1] of soil, at comp(i)
+            C2two       = lambdaup*abs(fluxup)*(C1top-C1(i,sl)) / P.nodes.disnod(i);  % flux-up
+            C2three     = lambdalow*abs(fluxlow)*(C1(i,sl)-C1bot)/P.nodes.disnod(i+1);% flux-low
+            C2_phys     = P.dt*(-C2one + ((C2two-C2three)/P.nodes.dz(i)));            % 
             % [g cm-3 H2O]
             C2phys      = ( C2_phys + C1(i,sl)*P.teta(i) ) / P.teta(i);
             
@@ -198,7 +184,7 @@ for sl=1:2
               (B.Tstar(P.tidx)-S.Topt)*teta_ratio*C1(i,1)*P.teta(i);
             C2_ntf_sd       = P.CDEKnitr(i)*1.07^ ...
               (B.Tstar(P.tidx)-S.Topt)*teta_ratio*P.sh.dap(i)*S1(i,1);
-            % attingimento selettivo:
+            % attingimento radicale selettivo (solo N=x):
             C2_sink         = S.NX.Kr(sl)*P.sink(i)*C1(i,sl);
 
             if sl==1
@@ -228,17 +214,17 @@ for sl=1:2
             C2_chem         = ( SsSk*P.dt + C1(i,sl)*P.teta(i) )/P.teta(i);
             C2_tot          = C2phys + C2_chem;
 
-            if S.NX.Kf2(sl)==1
+            if S.NX.Kf2(sl)==1% if it is linear Freundlich
                 % P.teta is calculated on h at j-1, I think teta should be
                 % of the current j!!
                 C2out(i,sl) = ( C2phys*P.teta(i) + P.sh.dap(i)* ...
                             S.NX.Kf1(sl)*C1(i,sl) + SsSk*P.dt ) ...
-                                 / ( fnteta( h22(i), P.sh, i ) + ...
+                   / ( multilayer_fnteta_vgm( h22(i), P.sh, i ) + ...
                                       P.sh.dap(i)*S.NX.Kf1(sl) );
             elseif C2_tot < 10^-9
                 C2phys      = 0;
-                C2out(i,sl) = C2phys;    
-            else
+                C2out(i,sl) = C2phys;
+            else% if it is nonlinear Freundlich
                 % **Bisection method**
                 % Bisection method (vedi libro con esercizi numerici in
                 % Matlab) for adsorbing solutes with Freundlich f_bis_sol è
@@ -257,7 +243,7 @@ for sl=1:2
             % ***NEW VERSION***
             % Operations before managing next node:
             % (remember that this is the i node and I'll manage the i+1 node)
-            fluxin          = P.flux(i+0);          % i-1
+            fluxin          = P.q(i+0);          % i-1
             switch i
                 case P.nz
                     % do nothing! I'm exiting the loop
@@ -268,7 +254,7 @@ for sl=1:2
                     lambdaup= (P.CDElambda(i+1)+P.CDElambda(i+0))/2;
                     lambdalow=(P.CDElambda(i+1)+P.CDElambda(i+1))/2;% **particular case!
                 otherwise % preparing to deal with OTHERS NODES
-                    fluxout = P.flux(i+2);          % i+1
+                    fluxout = P.q(i+2);             % i+1
                     C1top   = C1(i+0,sl);           % i-1
                     C1bot   = C1(i+2,sl);           % i+1
                     lambdaup= (P.CDElambda(i+1)+P.CDElambda(i+0))/2;

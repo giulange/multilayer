@@ -3,16 +3,16 @@
 %   -pressure head of air near the soil surface [see soilwater.for]:
 %   - you can implement it's calculation as done in multilayer by Coppola!
 hatm            = -2.75d+05;%   [cm??]
-nraidt          = 0.0d0;
-nird            = 0.0d0;
+P.nraidt        = 0.0d0; % net precipitation flux during iteration timesteps [cm d-1] 
+P.nird          = 0.0d0; % net irrigation depth [cm]
 %       if (swinco.ne.3) then
 %         ldwet = 0.d0
 %         spev = 0.d0
 %       endif
 runon           = 0.0d0;
 %       saev = 0.d0
-P.qtop          = 0.d0;
-P.flux          = zeros(P.nz+1,1);% might be P.q for simplicity!!
+P.qtop          = 0.d0; % water flux through soil surface [cm d-1]
+P.q             = zeros(P.nz+1,1);% it was P.flux for simplicity!!
 %       do i = 1,macp
 %         evp(i) = 0.0d0
 %         rfcp(i) = 1.0d0
@@ -158,9 +158,11 @@ P.h             = P.hin;
 %       do i = 1, numnod
 %         theta(i) = watcon(i,h(i),cofgen(1,i),swsophy,numtab,sptab)
 %       end do
-P.teta          = fnteta( P.hin, P.sh, 1:100 );
+% P.teta          = fnteta( P.hin, P.sh, 1:P.nz );
+P.teta          = multilayer_fnteta_vgm( P.hin, P.sh, 1:P.nz );
 %% ! --- initial soil water storage
 if ~W.SwMacro
+    %  Fraction of horizontal area of soil matrix per compartment (-):
     P.FrArMtrx(1:P.nz) = 1.d0;
 % --- TO BE ACTIVATED
 %     volact = 0.0d0;
@@ -183,7 +185,7 @@ end
 %      &                                    dz(node-1),dz(node))
 %       end do
 %       kmean(numnod+1) = k(numnod)
-P.cap           = multilayer_capacity( P.hin,  P.sh, 1:100 );
+P.cap           = multilayer_capacity( P.hin,  P.sh, 1:P.nz, P.dt );
 % Nodal/Internodal Hydraulic Conductivity [P.K,P.Kim2,P.Kip2] <-- h,teta
 multilayer_Kis2
 %% ! --- initial groundwater level

@@ -19,8 +19,8 @@ fpf('Checking vars...')
 multilayer_check_and_load
 
 % *****TEMPORARY*****
-fpf('Input data...  --->(temporary condition waiting for an exhaustive input framework!!)')
-multilayer_data_tmp
+% % fpf('Input data...  --->(temporary condition waiting for an exhaustive input framework!!)')
+% % multilayer_data_tmp
 % *****TEMPORARY*****
 
 fpf('Running prog...')

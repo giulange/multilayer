@@ -1,15 +1,6 @@
 function Pnodes = multilayer_soilgrid(numnodes,zint)
-% Pnodes = multilayer_soilgrid(numnodes,zint, P.nodes)
-
-% SUBSTITUTIONS:
-% P.nz      --> P.numnodes          % in future release!
-% P.dztop   --> P.nodes.dz(1)       % done!
-% P.dzbot   --> P.nodes.dz(P.nz+1)  % done!
-% P.d_z     --> P.nodes.thickness   % done!
-% P.istar   --> P.nodes.cumsum      % done!
-% P.z       --> P.nodes.z           % done!
-% P.dz      --> P.nodes.dz          % done!
-% P.zmax    --> W.zint(W.nlay)      % not found (?!)
+% Pnodes = multilayer_soilgrid( numnodes, zint )
+% 
 
 %% pre-elaboration
 nlay                        = length(zint);
@@ -25,6 +16,17 @@ Pnodes.dz                   = NaN( numnodes+1,1 );
 % Mono- and Multi- stratum:
 for ii=1:nlay
     Pnodes.num(ii)         = round(numnodes * zdepth(ii) / zint(nlay));
+    if ii==nlay
+        if numnodes - sum(Pnodes.num)==0
+            % Correct!!
+        elseif numnodes - sum(Pnodes.num)==1
+            % Adjust!!
+            Pnodes.num(ii)  = Pnodes.num(ii)+1;
+        else
+            % Exit!!
+            error('Wrong number of nodes!!')
+        end
+    end
     Pnodes.thickness(ii)   = zdepth(ii) / Pnodes.num(ii);
 end
 

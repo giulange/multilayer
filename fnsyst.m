@@ -30,40 +30,40 @@ teta_hsurf      = fnteta( W.hsurf, P.sh, 1    );
 
 % (ki-1/2) -- top node:
 if or(P.sh.ifc(1)==1,P.sh.ifc(1)==3)
-%     km(1,1)     = ( P.kond(1)    + multilayer_conductivity_node( teta_hsurf,P.sh,1 )      )/2;
+%     km(1,1)     = ( P.K(1)    + multilayer_conductivity_node( teta_hsurf,P.sh,1 )      )/2;
     km(1)       = multilayer_conductivity_internode( ...
                     multilayer_conductivity_node( teta_hsurf,P.sh,1 ), ...
-                    P.kond(1), W.Kmeth );
+                    P.K(1), W.Kmeth );
 else% 2,4,5
-%     km(1,1)     = ( P.kond(1)    + multilayer_conductivity_node( W.hsurf,P.sh,1 )         )/2;
+%     km(1,1)     = ( P.K(1)    + multilayer_conductivity_node( W.hsurf,P.sh,1 )         )/2;
     km(1)       = multilayer_conductivity_internode( ...
                     multilayer_conductivity_node( W.hsurf,P.sh,1 ),...
-                    P.kond(1), W.Kmeth );
+                    P.K(1), W.Kmeth );
 end
 % (ki+1/2) -- bottom node:
 if or(P.sh.ifc(P.nz)==1,P.sh.ifc(P.nz)==3)
-%     kp(P.nz,1)  = ( P.kond(P.nz) + multilayer_conductivity_node( teta_hbot, P.sh,P.nz )   )/2;
-    kp(P.nz)    = multilayer_conductivity_internode( P.kond(P.nz), ...
+%     kp(P.nz,1)  = ( P.K(P.nz) + multilayer_conductivity_node( teta_hbot, P.sh,P.nz )   )/2;
+    kp(P.nz)    = multilayer_conductivity_internode( P.K(P.nz), ...
                     multilayer_conductivity_node(teta_hbot,P.sh,P.nz), W.Kmeth );
 else% 2,4,5
-%     kp(P.nz,1)  = ( P.kond(P.nz) + multilayer_conductivity_node( W.hbot,P.sh,P.nz )       )/2;
-    kp(P.nz)    = multilayer_conductivity_internode( P.kond(P.nz), ...
+%     kp(P.nz,1)  = ( P.K(P.nz) + multilayer_conductivity_node( W.hbot,P.sh,P.nz )       )/2;
+    kp(P.nz)    = multilayer_conductivity_internode( P.K(P.nz), ...
                     multilayer_conductivity_node(W.hbot,P.sh,P.nz), W.Kmeth );
 end
 
 % (ki-1/2) -- bottom node:
-% km(P.nz,1)      = ( P.kond(P.nz) + P.kond(P.nz-1)       )/2;
-km(P.nz)        = multilayer_conductivity_internode( P.kond(P.nz-1), P.kond(P.nz), W.Kmeth );
+% km(P.nz,1)      = ( P.K(P.nz) + P.K(P.nz-1)       )/2;
+km(P.nz)        = multilayer_conductivity_internode( P.K(P.nz-1), P.K(P.nz), W.Kmeth );
 % (ki+1/2) -- top node:
-% kp(1,1)         = ( P.kond(1)    + P.kond(2)            )/2;
-kp(1)           = multilayer_conductivity_internode( P.kond(1), P.kond(2), W.Kmeth );
+% kp(1,1)         = ( P.K(1)    + P.K(2)            )/2;
+kp(1)           = multilayer_conductivity_internode( P.K(1), P.K(2), W.Kmeth );
 
 i               = (2:(P.nz-1));
 % (ki-1/2) -- intermediate nodes: (Eq. 2.23 SWAP 32 manual, page 35)
-% km(i,1)         = ( P.kond(i)    + P.kond(i-1)          )/2;
-km(i)           = multilayer_conductivity_internode( P.kond(i-1), P.kond(i), W.Kmeth );
+% km(i,1)         = ( P.K(i)    + P.K(i-1)          )/2;
+km(i)           = multilayer_conductivity_internode( P.K(i-1), P.K(i), W.Kmeth );
 % (ki+1/2) -- intermediate nodes: (Eq. 2.23 SWAP 32 manual, page 35)
-kp(i)           = multilayer_conductivity_internode( P.kond(i), P.kond(i+1), W.Kmeth );
+kp(i)           = multilayer_conductivity_internode( P.K(i), P.K(i+1), W.Kmeth );
 
 %% risolvere il sistema (vedi swap)
 %% intermediate nodes (building the Fi??)
@@ -80,7 +80,7 @@ ratio(i,1)      = P.dt ./ ( P.nodes.dz(i).^2 );
 alpha(i,1)      = -ratio(i).*km(i);
 beta(i,1)       = P.cap(i) + ratio(i).*km(i) + ratio(i).*kp(i);
 gamma(i,1)      = -ratio(i).*kp(i);
-delta(i,1)      = P.cap(i) .* P.h1(i) + ...
+delta(i,1)      = P.cap(i) .* P.h_jm1(i) + ...
                   P.nodes.dz(i) .* ratio(i) .* ( km(i)-kp(i) )...
                   -P.dt .* P.sink(i);
 %% definire W.itbc (top boundary condition) e W.ibbc(bottom boundary condition) (=0 per q e 1 per h) 
@@ -93,11 +93,11 @@ alpha(i,1)      = 0;
 gamma(i,1)      = -ratio(i)*kp(i);
 if W.itbc==0 % itbc differenzia hsurf da qsurf, visto che adesso abbiamo unificato in hqsurf?
     beta(i,1)   = P.cap(i) + ratio(i)*kp(i);
-    delta(i,1)  = P.cap(i)*P.h1(i) - ...
+    delta(i,1)  = P.cap(i)*P.h_jm1(i) - ...
                   P.nodes.dz(i)*ratio(i)*(W.qsurf+kp(i)) - P.dt*P.sink(i);
 else
     beta(i,1)   = P.cap(i) + ratio(i)*km(i) + ratio(i)*kp(i);
-    delta(i,1)  = P.cap(i)*P.h1(i) - ...
+    delta(i,1)  = P.cap(i)*P.h_jm1(i) - ...
                   P.nodes.dz(i)*ratio(i)*(km(i)-kp(i)) + ...
                   ratio(i)*km(i)*W.hsurf - P.dt*P.sink(i);
 end
@@ -107,13 +107,13 @@ alpha(P.nz,1)   = -ratio(P.nz)*km(P.nz);
 gamma(P.nz,1)   = 0;
 if W.ibbc==0
    beta(P.nz,1) = P.cap(P.nz) + ratio(P.nz)*km(P.nz);
-   delta(P.nz,1)= P.cap(P.nz)*P.h1(P.nz) + ...
+   delta(P.nz,1)= P.cap(P.nz)*P.h_jm1(P.nz) + ...
                   P.nodes.dz(P.nz)*ratio(P.nz)*(km(P.nz)+W.qbot) - ...
                   P.dt*P.sink(P.nz);
 else
    beta(P.nz,1) = P.cap(P.nz) + ratio(P.nz)*km(P.nz) + ...
                   ratio(P.nz)*kp(P.nz);
-   delta(P.nz,1)= P.cap(P.nz)*P.h1(P.nz) + ...
+   delta(P.nz,1)= P.cap(P.nz)*P.h_jm1(P.nz) + ...
                   P.nodes.dz(P.nz)*ratio(P.nz)*(km(P.nz)-kp(P.nz)) + ...
                   ratio(P.nz)*kp(P.nz)*W.hbot-P.dt*P.sink(P.nz);
 end

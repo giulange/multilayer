@@ -30,7 +30,8 @@ switch W.SwBotB
         W.hbot      = P.h(P.nz);
         % which, for W.grad=1, reduces to the qbot computed below:
         % *Fi
-        P.qbot      = -1 * P.Kip2(P.nz);    
+        P.qbot      = -1 * P.Kip2(P.nz);
+%         figure(1),pause(0.1),plot( P.q(101-5:101),1:6 )
     case 8% 8  Free outflow at soil-air interface
         error('Bottom boundary condition (W.botbc=%d) not yet implemented',W.botbc)
     otherwise

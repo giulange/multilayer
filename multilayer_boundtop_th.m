@@ -12,7 +12,7 @@
 % cambiato nella routine per l'evaporazione W.qsurf=P.Ep oppure
 % W.qsurf=P.Emax.
 % Lo stesso vale per W.hsurf che potrebbe essere stato cambiato nella
-% routine per W.itbc=1 W.hsurf=(3*P.h1(1)-P.h1(2))/2 oppure
+% routine per W.itbc=1 W.hsurf=(3*P.h_jm1(1)-P.h_jm1(2))/2 oppure
 % W.hsurf=W.hsurfmax.
 % Se questi valori non venissero ripristinati, nel giro successivo del
 % while i controlli sui flussi in superficie (per W.itbc=0) o sui
@@ -23,11 +23,11 @@
 % to change top boundary condition on a new dt (when no convergence was
 % reached)
 if W.itbc==0
-    W.qsurf     = B.top.hqstar(P.tidx);
+    W.qsurf         = B.top.hqstar(P.tidx) -P.irri(P.tidx);
 elseif and(W.itbc==1,P.rnf==0)
-    W.hsurf     = B.top.hqstar(P.tidx);
+    W.hsurf         = B.top.hqstar(P.tidx) -P.irri(P.tidx);
 elseif W.itbc==1 && P.rnf==1 && P.L==1
-    W.qsurf     = B.top.hqstar(P.tidx);
+    W.qsurf         = B.top.hqstar(P.tidx) -P.irri(P.tidx);
 end
 %% ---bottom    boundary
 if W.ibbc==0                % flux
@@ -42,11 +42,12 @@ if and(W.isol==2,W.iCtopvar==1)% check with Antonio!!
     % fertigation(NO3):
     P.Cinput(2)     = P.compounds(7,P.tidx);
 end
-%% crop
-if W.iveg==1
-%     P.ETp0          = P.Kc(P.tidx)*B.top.eto(P.tidx);
-    P.ETp0          = P.Kc(P.tidx)*V.ETr(P.tidx);
-    P.Ep            = P.ETp0*exp(-V.extf*V.LAI(P.tidx));
-    P.Tp            = P.ETp0-P.Ep;
-    P.Droot         = V.Droot(P.tidx);
-end
+%% crop --> ask Antonio!!!
+% Ask Antonio if it is good to:
+%   -delete for if condition on crop existence
+%   -consider a V.Kc=0 when no crop is present during simulation
+% if ~isnan(V.currcrop)
+P.ETp0          = P.Kc(P.tidx)*B.top.eto(P.tidx);
+P.Ep            = P.ETp0*exp(-V.extf*P.LAI(P.tidx));
+P.Tp            = P.ETp0-P.Ep;
+% end

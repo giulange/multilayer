@@ -30,14 +30,17 @@ switch W.wt_mod
             multilayer_boundtop_th
             
             % *THOMAS
-%             run multilayer_wtus_thomas.m
-            wtus_thomas_OLD_fn
+%             run multilayer_wtus_thomas_OLD_fn.m
+            multilayer_wtus_thomas_OLD_fn
             % [P.iter(:,P.j-5:P.j);P.time(P.j-5:P.j)-P.time(P.j-6:P.j-1)]
         end
-        P.iter(1:4,P.j) = [p;nr_breaked;fl_noconv;n_noconv];
+        P.iter(1:4,P.j)     = [p;nr_breaked;fl_noconv;n_noconv];
         % *RUNOFF [& runon?]
-        O.runoff(1,P.j,mm) = W.qsurf-O.fluxsurf(1,P.j,mm);
-
+        O.runoff(1,P.j,mm)  = W.qsurf-O.fluxsurf(1,P.j,mm);
+        P.h = O.h22(:,P.j,mm);
+        for i=1:P.nz
+            P.teta(i) = fnteta_OLD(P.h(i), P.sh.tetas(i),P.sh.tetar(i),P.sh.alfrs(i),P.sh.fi(i),P.sh.alfvg(i),P.sh.en(i),P.sh.alfvg2(i),P.sh.en2(i),P.sh.ifr(i));
+        end
         % *W.itbc
         %   Questo controllo va fatto solo se W.itopvar=1.
         %   Se W.itopvar=0, una volta avvenuto il cambio da W.itbc=0 a
@@ -62,29 +65,31 @@ switch W.wt_mod
 %% *NEWTON-RAPHSON
         % bottom boundary condition:
         multilayer_boundbot
-                
+
+        % SAVE:
+        %   - This SAVE must be put inside or outside the while? --> SWAP
+        %     put it outside the loop!
+        %       (1) If it is inside I hold the h from previous
+        %           iteration step to start a new iteration based on a
+        %           smaller dt (when no convergence was reached).
+        %       (2) If it must be put outside, then I have to update
+        %           h, teta and pond at both j-1 and j to the values
+        %           stored at previous j (i.e. h=O.h22(:,P.j-1,mm) and
+        %           so on).
+        % Pressure head at former time level [cm]
+        P.h_jm1 = P.h;
+        % Volumic soil water content at former time level [-]
+        P.teta_jm1 = P.teta;
+        % GroundWater Level:
+        %gwl_jm1 = gwl;
+        % Ponding:
+        pond_jm1 = pond;
+
         % Richard's equation solution by means of Newton-Raphson:
-        while ~nr_breaked && ~fl_noconv
-            % SAVE:
-            %   - This SAVE must be put inside or outside the while? -->
-            %     ask to Antonio Coppola!!
-            %       (1) If it is inside I hold the h from previous
-            %           iteration step to start a new iteration based on a
-            %           smaller dt (when no convergence was reached).
-            %       (2) If it must be put outside, then I have to update
-            %           h, teta and pond at both j-1 and j to the values
-            %           stored at previous j (i.e. h=O.h22(:,P.j-1,mm) and
-            %           so on).
-            % Pressure head at former time level [cm]
-            P.h_jm1 = P.h;
-            % Volumic soil water content at former time level [-]
-            P.teta_jm1 = P.teta;
-            %gwl_jm1 = gwl;
-            pond_jm1 = pond;
-            
+        while ~nr_breaked && ~fl_noconv            
             multilayer_wtus_newtonraphson
         end
-                
+
         % STORE:
         P.iter(:,P.j)           = [p;nr_breaked;fl_noconv;n_noconv;iL;bt_breaked];
         O.h22(:,P.j,mm)         = P.h;%     *store current PRESSURE HEAD [cm]
@@ -92,23 +97,9 @@ switch W.wt_mod
         O.fluxsurf(1,P.j,mm)    = P.qtop;%  *store current QTOP [cm d-1]
         O.pond(1,P.j,mm)        = pond;%    *store current PONDING [cm]
         O.fluxbot(1,P.j,mm)     = P.qbot;%	*store current bottom water flux [cm d-1]
-        
         % REGISTER: {K,K1s2,flux,macropore}
+        %   -same as SWAP-32 call to SoilWater(3)
         multilayer_soilwater_register
 end
-%% PLOT -- tmp
-% figure(88),whitebg('k')
-% hold on,subplot(411),plot([P.sh.tetafc,P.teta])
-% legend('tetafc','teta'),title(sprintf('j = %4d',P.j-1)), hold off;
-% hold on,subplot(412),plot([P.sink]), legend('sink'),hold off;
-% hold on,subplot(413),plot([P.h1(1:10),O.h22(1:10,P.j)]), legend('h1','h2'),hold off;
-% hold on,subplot(414),plot([P.cap,P.kond]), legend('cap','kond'),hold off;
-% 
-% figure(hFig)
-%  subplot(411),hold on,plot(O.h22(:,P.j)),hold off,legend('O.h22 integral');
-%   title(sprintf('time(%4d) = %10.3f -- hq_{top}=%.3f -- runoff=%.3f',P.j,P.time(P.j),B.top.hqstar(P.tidx),W.qsurf-O.fluxsurf(1,P.j,mm)),'FontSize',14,'FontWeight','b')
-%  subplot(412),plot(O.h22(:,P.j)),legend('O.h22 istantaneous');
-%  subplot(413),hold on,plot( P.iter(1,1:P.j) ),scatter(P.j,n_noconv,'x'),hold off,legend('No iterations','Location','NW')
-%  subplot(414),plot( [W.dtin,diff(P.time(1:P.j))] ),legend('\fontsize{18}\deltat','Location','NW')
 %% clean
 clear p nr_breaked fl_noconv n_noconv iL bt_breaked

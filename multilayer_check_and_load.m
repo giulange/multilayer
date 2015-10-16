@@ -1,8 +1,48 @@
+%% ****DATA****
+% There exist two sets of input data:
+%   (1) varying on depth of soil profile (e.g. I_depth.txt);
+%   (2) varying on time of simulation (e.g. I_time.txt).
+% 
+% The program accepts inputs in two ways:
+%   (A) they are provided in the config file;
+%   (B) they are defined in an external file: one file for (1) and another
+%       for (2).
+% 
+% I pointed out the following schema for data inputs of type (A):
+% 
+%   (1) This kind of parameters are defined giving the value of the
+%       parameter together with the depth at which the value occurs. For
+%       instance (given a soil profile defined in Z=[0,300] cm):
+%           Z [cm]      W.hin [?]
+%        [  0           -100    ;
+%           50          -80     ;
+%           250         -50     ];
+%       I need to define at least one record, the one for the top of the
+%       pedon limit (i.e. at Z=0).
+%       All other values in between are taken into consideration according
+%       to a step function in which the value at current Zi is given by
+%       value of the parameter defined at the previous depth.
+%       For instance, in the example above W.hin at depth 30 cm is equal to
+%       -100, while at depth 75 is equal to -80.
+% 
+%   (2) The same approach is followed by the kind of variables, except here
+%       we refer to the time variable.
+%       The Time column must be defined using the "YYYY-MM-DD" format for
+%       daily inputs or the "YYYY-MM-DD,HH" for the hourly inputs.
+%       Give a look at the example below, assuming that the simulation
+%       interval is between 2013-01-01 and 2013-12-31:
+%           Time [day]       B.Ctop.Tstar [C]
+%       {  '2013-01-01'     18.6
+%          '2013-03-01'     23.4
+%          '2013-06-01'     25.2
+%          '2013-09-01'     20.2
+%          '2013-11-01'     19.2    }
 %% define internal pars:
-err_msg_wrong_par_set   = @(PAR) sprintf('This parameter was set in a wrong way: %s', PAR);
-len_units_time          = @(ed,sd) (datenum(ed)-datenum(sd)+1)/W.timestep;
+err_msg_wrong_par_set   = @(PAR) error('This parameter was set in a wrong way: %s', PAR);
+len_units_time          = @(ed,sd) (datenum(ed)-datenum(sd)+1)/W.timestep;% +1 to deal with both extremes of interval 
+len_units_time_str0     = @(ed,sd) (datenum(ed) - datenum(sd,'yyyy-mm-dd,hh')+1)/W.timestep;
 len_units_time_str1     = @(ed,sd) (datenum(ed,'yyyy-mm-dd,hh') - datenum(sd)+1)/W.timestep;
-% len_units_time_str2     = @(ed,sd) (datenum(ed) - datenum(sd,'yyyy-mm-dd,hh')+1)/W.timestep;
+len_units_time_str2     = @(ed,sd) (datenum(ed,'yyyy-mm-dd,hh') - datenum(sd,'yyyy-mm-dd,hh')+1)/W.timestep;
 %% check dirs
 if ~exist( proj.ipath, 'dir' )
     error('The Project directory does not exist!')
@@ -42,14 +82,26 @@ P.Nj                    = round( W.tmax / (10^(W.Nj_shp + ...
 W.dtin          = W.dtin/W.timestep;
 W.dtmin         = W.dtmin/W.timestep;
 W.dtmax         = W.dtmax/W.timestep;
-%% Read I_depth.txt -- to be implemented
-%% Read I_time.txt -- to be implemented
+%% check consistency between simulation-time vs rotation-time
+% I assume that rotation time cannot be outside the simulation time!
+% This means that rotation-time becames the reference in cutting the
+% interval-time configured for irrigation: if an interval-time is outside
+% simulation-time, it means that a good rotation-time properly cuts the
+% interval-time without errors in the program.
+% if ~isempty( V.rotation )
+%     if sum(datenum(W.sdate) > datenum(V.rotation(:,1))) || ...
+%        sum(datenum(W.edate) < datenum(V.rotation(:,2)))
+%         err_msg_wrong_par_set('V.rotation')
+%     end
+% end
+%% Read I_depth.txt -- to be implemented -- see **DATA** above
+%% Read I_time.txt -- to be implemented -- see **DATA** above
 %% adapt climatic data according to W.timestep
-B.top.eto       = reshape(repmat(B.top.eto,1,1/W.timestep)',W.tmax,1);% [mm]
-B.top.radi      = reshape(repmat(B.top.radi,1,1/W.timestep)',W.tmax,1);%[]
-B.top.rain      = reshape(repmat(B.top.rain,1,1/W.timestep)',W.tmax,1);%[mm]
-B.top.tmax      = reshape(repmat(B.top.tmax,1,1/W.timestep)',W.tmax,1);%[C]
-B.top.tmin      = reshape(repmat(B.top.tmin,1,1/W.timestep)',W.tmax,1);%[C]
+B.top.eto       = reshape(repmat(B.top.eto,1,1/W.timestep)', 1,W.tmax);%[cm]
+B.top.radi      = reshape(repmat(B.top.radi,1,1/W.timestep)',1,W.tmax);%[]
+B.top.rain      = reshape(repmat(B.top.rain,1,1/W.timestep)',1,W.tmax);%[cm]
+B.top.tmax      = reshape(repmat(B.top.tmax,1,1/W.timestep)',1,W.tmax);%[C]
+B.top.tmin      = reshape(repmat(B.top.tmin,1,1/W.timestep)',1,W.tmax);%[C]
 %% P.nz & SOIL GRID GEOMETRY
 W.sg.sublayers_names        = {'SoilLay','SubLay','hSubLay','hNode','nNodes'};
 switch W.sg.type
@@ -63,6 +115,15 @@ switch W.sg.type
         % Not yet implemented
         err_msg_wrong_par_set( 'W.sg.type' )
 end
+% -in SWAP-32 ¶disnod(i) = 0.5*(dz(i-1)+dz(i))¶
+P.nodes.disnod(1)           = 0.5*P.nodes.dz(1);
+P.nodes.disnod(2:P.nz+1,1)  = 0.5*(P.nodes.dz(1:P.nz) + P.nodes.dz(2:P.nz+1));
+P.nodes.inpola(1,1)         = NaN;
+P.nodes.inpola(2:P.nz-1,1)  = 0.5*P.nodes.dz(2:P.nz-1) ./ P.nodes.disnod(2:P.nz-1);
+P.nodes.inpola(P.nz,1)      = 0.5*P.nodes.dz(P.nz) / P.nodes.disnod(P.nz);
+P.nodes.inpolb(1,1)         = 0.5*P.nodes.dz(1) / P.nodes.disnod(2);
+P.nodes.inpolb(2:P.nz-1,1)  = 0.5*P.nodes.dz(2:P.nz-1) ./ P.nodes.disnod(3:P.nz);
+P.nodes.inpolb(P.nz,1)      = NaN;
 
 % PLOT the soil grid geometry configuration:
 if W.sg.plotme, multilayer_soilgrid_graph(P.nodes,W.zint); end
@@ -71,12 +132,13 @@ if W.dtin<W.dtmin
     warning('W.dtin=%f < W.dtmin=%f',W.dtin,W.dtmin)
     W.dtin = W.dtmin;
 end
-%% P.tprint (print steps)
+%% P.tprint (print steps) -- you miss latest day to be printed!! correct
 % This is the only time-dependent parameter whose LENGTH is not affected by
 % the valorization of W.timestep, but ony the VALUES are.
 if isempty(W.tp{1})
     % read from I_time.txt file.
     % P.tprint = VAR(:,col);
+    err_msg_wrong_par_set('W.tp')
 else
     if size(W.tp,1)==1
         P.tprint        = 1:W.tp{1,2}:W.tmax;
@@ -92,53 +154,19 @@ else
         P.tprint        = (P.tprint - datenum(W.sdate))/W.timestep;
     end
 end
-%% V.Kc (reduction coeff. of potential evapotraspiration)
-if isempty(V.Kc{1})
-    err_msg_wrong_par_set('V.Kc')
-else
-    if size(V.Kc,1)==1
-        P.Kc            = repmat(V.Kc{1,2},1,W.tmax);
-    else
-        P.Kc            = [];
-        for ii = 1:size(V.Kc,1)-1
-            LEN         = len_units_time( datenum( V.Kc{ii+1,1},'yyyy-mm-dd,hh' ),datenum( V.Kc{ii,1},'yyyy-mm-dd,hh' ) );
-            P.Kc        = [P.Kc, repmat(V.Kc{ii,2},1, LEN )];
-        end
-        LEN             = len_units_time( datenum( W.edate ), datenum( V.Kc{end,1},'yyyy-mm-dd,hh' ) );
-        P.Kc            = [P.Kc, repmat(V.Kc{end,2},1, LEN )];
-    end
-end
-%% V.Ke (reduction coeff. of potential soil evaporation)
-if isempty(V.Ke{1})
-    % calculate following FAO paper 56, Chapter 7
-    err_msg_wrong_par_set('V.Ke')
-else
-    if size(V.Ke,1)==1
-        P.Ke            = repmat(V.Ke{1,2},1,W.tmax);
-    else
-        P.Ke            = [];
-        for ii = 1:size(V.Ke,1)-1
-            LEN         = len_units_time( datenum( V.Ke{ii+1,1},'yyyy-mm-dd,hh' ),datenum( V.Ke{ii,1},'yyyy-mm-dd,hh' ) );
-            P.Ke        = [P.Ke, repmat(V.Ke{ii,2},1, LEN )];
-        end
-        LEN             = len_units_time( datenum( W.edate ), datenum( V.Ke{end,1},'yyyy-mm-dd,hh' ) );
-        P.Ke            = [P.Ke, repmat(V.Ke{end,2},1, LEN )];
-    end
-end
 %% B.bot.hqstar (flux/potential at bottom boundary)
-if isempty(V.Ke{1})
-    % calculate following FAO paper 56, Chapter 7
-    err_msg_wrong_par_set('B.bot.hqstars')
+if isempty(B.bot.hqstar{1})
+    err_msg_wrong_par_set('B.bot.hqstar')
 else
     if size(B.bot.hqstar,1)==1
         P.bothq         = repmat(B.bot.hqstar{1,2},1,W.tmax);
     else
         P.bothq         = [];
         for ii = 1:size(B.bot.hqstar,1)-1
-            LEN         = len_units_time( datenum( B.bot.hqstar{ii+1,1},'yyyy-mm-dd,hh' ),datenum( B.bot.hqstar{ii,1},'yyyy-mm-dd,hh' ) );
+            LEN         = len_units_time_str2(B.bot.hqstar{ii+1,1},B.bot.hqstar{ii,1}) -1;
             P.bothq     = [P.bothq, repmat(B.bot.hqstar{ii,2},1, LEN )];
         end
-        LEN             = len_units_time( datenum( W.edate ), datenum( B.bot.hqstar{end,1},'yyyy-mm-dd,hh' ) );
+        LEN             = len_units_time_str0(W.edate,B.bot.hqstar{end,1});
         P.bothq         = [P.bothq, repmat(B.bot.hqstar{end,2},1, LEN )];
     end
 end
@@ -151,9 +179,15 @@ if S.isfert
     % ...to be developed!!
     P.fertilizers = NaN;
     
+    error('Not implemented yet!')
 else
     P.fertilizers = NaN;
-    
+    if size(S.compounds,2)~=8
+        err_msg_wrong_par_set('S.compounds')
+    end
+    %            1   2     3     4      5      6      7
+    % rows --> [ UR; O_rp; O_sw; SD_nh; SD_no; FR_nh; FR_no ]
+    % cols --> P.tidx
     P.compounds = zeros( size(S.compounds,2)-1, W.tmax );
     for ii = 1:size(S.compounds,1)
         t_elem = len_units_time_str1( S.compounds{ii,1}, W.sdate );
@@ -161,8 +195,20 @@ else
     end
     % Convert [mg cm-2] to [g cm-2] used in multilayer:
     P.compounds = P.compounds / 1000;
-    
 end
+%% modified Van Genuchten
+% Here we need to check that n shape factor of VG function is below a
+% predefined threshold. If it is below, we have to introduce the use of an
+% air-entry value, h_enpr to avoid for numerical instabilities.
+% n__THRESHOLD    = 1.4;%[-]
+% h_enpr__DEFAULT = -1; %[cm]
+% for ii = 1:W.nlay
+%     if W.en < n__THRESHOLD
+%         W.h_enpr(ii)     = h_enpr__DEFAULT;
+%         W.ifr(ii)        = 4;%modified VG
+%         W.ifc(ii)        = 6;%modified VG
+%     end
+% end
 %% P.hin
 P.hin       = multilayer_sub_valorization_depth( W.hin, P.nz, P.nodes.z(1:end-1) );
 %% P.CDECinNH
@@ -181,14 +227,15 @@ P.CDEKdenitr = multilayer_sub_valorization_depth( S.CDE.Kdenitr, P.nz, P.nodes.z
 % if (W.itopvar==0 && W.ibotvar==0) || (W.itopvar==1 && W.ibotvar==1)
 %     error('W.itopvar=%d cannot be equal to W.ibotvar=%d',W.itopvar,W.ibotvar)
 % end
-%% hqstar -- flux/potential at top boundary
-if W.itbc==0
-    if ~B.top.isirri
-        B.top.irri  = 0;
-    end
-
-    B.top.hqstar    = -(B.top.rain) -(B.top.irri);
-end
+%% B.top.hqstar -- flux/potential at top boundary -- [only used in THOMAS] -- ask Antonio.Coppola 
+% In Thomas algorithm the Type of irrigation is not considered. For
+% instance the gross irrigation given by sprinklers should be depurated of
+% the amount intercepted by crop: this is accounted for by the
+% Newton-Raphson algorithm (in multilayer_boundtop.m).
+B.top.hqstar        = -(B.top.rain); % <-- ask Antonio if this is good, outside the following if condition
+% if V.flirri==1 && W.itbc==0% schedule:known,   volume:known
+%     B.top.hqstar    = B.top.hqstar -(P.irri);
+% end
 %% itopvar -- it's set here and not in conf anymore
 % itopvar:          Flag to set top boudary conditions:
 %                       *0  --> fixed
@@ -218,12 +265,10 @@ switch W.isol
         end
 
 end
-%% vegetazione
-if ~W.iveg==1, V = NaN; end
-%% TEMP???????
+%% TEMPORARY !!!!!!
 B.Ctop.Tstar        = (B.top.tmax+B.top.tmin)/2;
+warning('you have to develop a module to simulate soil temperature!!')
 %% montecarlo
-
 if W.MTCL==0
     M.nvp               = 1;
 elseif W.MTCL==1
@@ -294,40 +339,7 @@ end
 if (W.MTCL==0 && M.nvp>1) || (W.MTCL==1 && M.nvp<2)
     error( err_msg_wrong_par_set( 'M.nvp' ) );
 end
-%% cutted code:
-
-% %% condizioni al contorno superiore e inferiore ==> mettere in _conf.m
-% if W.itopvar==1 && W.ibotvar==0
-%     B.sel.name          = 'top';
-%     B.sel.tqstar        = B.top.thqstar;
-%     B.sel.qstar         = B.top.hqstar;
-% elseif W.itopvar==0 && W.ibotvar==1
-%     B.sel.name          = 'bot';
-%     B.sel.tqstar        = B.bot.thqstar;
-%     B.sel.qstar         = B.bot.hqstar;
-% else % if they are [0,0] OR [1,1]
-%     % see multilayer_checkpars.m
-% end
-% 
-% %% trasporto soluti ==> mettere in _conf.m
-% switch W.isol
-%     case 0
-%         % do nothing!
-%     case 1
-%         % do nothing!
-%     case 2 % ==> check if that is what you were thinking about!!
-%         B.sel.name      = 'Ctop';
-%         B.sel.tqstar    = B.Ctop.tqstar;
-%         B.sel.qstar     = NaN; % B.Ctop.qstar does not exist!
-% end
-% 
-% %% vegetazione ==> mettere in _conf.m, solo se non � inutile!!
-% if W.iveg==1 % ==> inutile, meglio definire un unico tqstar per tutto il programma!! 
-%     B.sel.name          = 'veg';
-%     B.sel.tqstar        = V.tqstar;
-% %     B.sel.qstar         = B.bot.hqstar; % ??non c'�??
-% end
 %% ...something else?
 %% include checks on EC (in particular EC.matrix!!)
 %% end
-clear err_msg_wrong_par_set len_units_time ii LEN len_units_time_str1 len_units_time_str2
+clear err_msg_wrong_par_set len_units_time ii LEN len_units_time_str* dat

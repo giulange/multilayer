@@ -62,7 +62,7 @@ if zint(end) ~= sum( iHs )
     error('Error defininig hSubLay in the "sublayers" option!')
 end
 % The sequential number of soil sub-layers must continuous:
-if sum( diff( iS )>1 )
+if sum( diff( iS )~=1 )
     error('Error defininig SubLay in the "sublayers" option!')
 end
 % other checks?

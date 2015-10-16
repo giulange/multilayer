@@ -10,12 +10,13 @@
 % NOTES:
 %   -you should pass both h and teta to multilayer_conductivity_node and
 %   internally use ifc to compute P.K(i).
-x               = P.teta;
-notTeta         = P.sh.ifc~=1 & P.sh.ifc~=3;
-x(notTeta)      = P.h(notTeta);
-P.K             = multilayer_conductivity_node( x, P.sh, 1:P.nz );
+% x               = P.teta;
+% notTeta         = P.sh.ifc~=1 & P.sh.ifc~=3;
+% x(notTeta)      = P.h(notTeta);
+% P.K             = multilayer_conductivity_node( x, P.sh, 1:P.nz );
+P.K             = multilayer_conductivity_node( P.teta, P.sh, 1:P.nz );
 if W.SwMacro
-    P.K = P.FrArMtrx .* P.K;
+    P.K         = P.FrArMtrx .* P.K;
 end
 %% **INTERNODAL CONDUCTIVITIES**
 %% Internodal conductivity at intermediate nodes:
@@ -28,5 +29,7 @@ P.Kip2(1)         = multilayer_conductivity_internode( P.K(1),     P.K(2),    W.
 %P.Kim2(1)        --> computed in multilayer_boundtop.m
 %% Internodal conductivity at bottom node (only P.Kim2 can be defined):
 P.Kim2(P.nz)    = multilayer_conductivity_internode( P.K(P.nz-1),P.K(P.nz), W.Kmeth, P.nodes.dz(P.nz-1), P.nodes.dz(P.nz) );
-P.Kip2(P.nz)    = P.K(P.nz);% <--- this is used in Fi(NN) for free drainage
+if W.SwBotB==7% free drainage --> used in Fi(NN)
+    P.Kip2(P.nz)= P.K(P.nz);
+end
 clear x notTeta
