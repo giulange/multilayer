@@ -193,7 +193,7 @@ for p=1:pmax
     % if only the bottom node is non-convergent
     if ~sum(flNonConv1(1:end-1)) && flNonConv1(end)
         % then apply a different threshold to bottom node and continue
-        if abs(Fi(end))<1.0d-02
+        if abs(Fi(end))<1.0d-01
             flNonConv1(end) = 0;
             isAdj_flNonConv1 = true;
         end
@@ -269,17 +269,31 @@ if ~nr_breaked%     convergence could not be reached!
         P.time(P.j)     = P.time(P.j) -dtprevious +P.dt;
         % If we go back to the previous integer timestep, we must update:
         P.tidx          = floor(P.time(P.j))+1;
-
+        % The dt before reduction––>(P.dt/my_dtfactor) could close a day
+        % if the P.L=1! After reduction the current dt cannot close the day
+        % and the program have to know this by setting the flEndOfDay flag
+        % to false!
+        if P.L
+            P.flEndOfDay = false;
+        end
+        
     elseif P.dt > W.dtmin
         P.dt            = W.dtmin;
         P.time(P.j)     = P.time(P.j) -dtprevious +P.dt;
         % If we go back to the previous integer timestep, we must update:
         P.tidx          = floor(P.time(P.j))+1;
+        % The dt before reduction––>(P.dt/my_dtfactor) could close a day
+        % if the P.L=1! After reduction the current dt cannot close the day
+        % and the program have to know this by setting the flEndOfDay flag
+        % to false!
+        if P.L
+            P.flEndOfDay = false;
+        end
 
     elseif P.dt==W.dtmin
         % *CONTINUE WITHOUT CONVERGENCE:
         % ...what to do?
-        fl_noconv       = true;% is non-convergent?
+        fl_noconv       = true;% continue without convergence?
     else
         error('Something wrong in setting P.dt!')
     end
