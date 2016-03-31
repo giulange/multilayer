@@ -1,3 +1,4 @@
+tic;
 %% Pre-allocation
 multilayer_init
 %% MONTECARLO --START--
@@ -56,12 +57,14 @@ for mm=1:M.nvp
 %% Init SoilWater State rates/variables
     if W.wt_mod==1% New solver based on Newton-Raphson algorithm
         multilayer_soilwater_init
-        multilayer_solute_init
+        if W.isol ~= 0
+            multilayer_solute_init
+        end
     end
 %% TIME simulation loop
     fprintf( '%s\n', repmat('_',1,130) );
-    fprintf('%14s, %7s %4s %11s %7s %3s %11s %5s %5s %6s %6s %8s %12s %12s\n', ...
-        'date','P.time','P.j','dtwater','1/P.dt','p','dtsolute','rain','irri','roots','requ','stress','camm_day','cnit_day')
+    fprintf('%14s, %7s %4s %11s %7s %11s %3s %5s %5s %6s %6s %8s %12s %12s\n', ...
+        'date','P.time','P.j','dtwater','1/P.dt','dtsolute','p','rain','irri','roots','requ','stress','camm_day','cnit_day')
     while P.time(P.j)<W.tmax
 %% CROP :: rotation & irrigation
         if W.iveg && P.flStartOfDay
@@ -145,11 +148,10 @@ for mm=1:M.nvp
 %% MONTECARLO --END--
 end% mm=1:M.nvp
 % close(hwb) % close waitbar
-%% SAVE -- incomplete [set which times and nodes to print!!]
-if W.save
-    if W.MTCL == 0 || M.nvp == 1
-        multilayer_save( O, proj, P.j-1 )
-    elseif W.MTCL == 1
-        multilayer_save_mcs( O, proj )
-    end
-end
+P.ElapsedTime_of_Simulation = toc;
+%% prepare "O" for saving purpose
+% time, tprint, tptolle
+O.time      = P.time;
+O.tprint    = P.tprint;
+O.tptolle   = W.tptole;
+O.z         = P.nodes.z(1:end-1);% last index is for bottom boundary!

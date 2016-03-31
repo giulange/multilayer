@@ -26,6 +26,16 @@ multilayer_check_and_load
 fpf('Running prog...')
 multilayer_prog
 
+% SAVE -- incomplete [set which times and nodes to print!!]
+fpf('Saving sim outputs...')
+if W.save
+    if W.MTCL == 0 || M.nvp == 1
+        multilayer_save( O, proj, P.j-1, W.isol )
+    elseif W.MTCL == 1
+        multilayer_save_mcs( O, proj )
+    end
+end
+
 if proj.video
     fpf('Displaying results...')
     multilayer_graph
