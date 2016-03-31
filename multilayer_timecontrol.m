@@ -21,6 +21,7 @@ if P.flEndOfDay% at previous j I closed a DAY!
     P.flEndOfDay        = false;
     P.flStartOfDay      = true;
     flZeroCumu          = true;% reset solute balance vars
+    P.L                 = 0;% am I at the END-OF-DAY?
     if B.top.rain(P.tidx_jm1+1)<=4.0d-01
         P.dt            = W.dtmax;
     elseif B.top.rain(P.tidx_jm1+1)<=4.0d-01 && P.iter(1,P.j-1)<=25
