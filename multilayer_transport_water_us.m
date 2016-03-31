@@ -93,10 +93,10 @@ switch W.wt_mod
         % STORE:
         P.iter(:,P.j)           = [p;nr_breaked;fl_noconv;n_noconv;iL;bt_breaked];
         O.h22(:,P.j,mm)         = P.h;%     *store current PRESSURE HEAD [cm]
-        O.runoff(1,P.j,mm)      = runoff;%  *store current RUNOFF [cm?]
-        O.fluxsurf(1,P.j,mm)    = P.qtop;%  *store current QTOP [cm d-1]
-        O.pond(1,P.j,mm)        = pond;%    *store current PONDING [cm]
-        O.fluxbot(1,P.j,mm)     = P.qbot;%	*store current bottom water flux [cm d-1]
+        O.runoff(1,P.j,mm)      = runoff;%  *store current RUNOFF   [cm]
+        O.fluxsurf(1,P.j,mm)    = P.qtop;%  *store current QTOP     [cm d-1]
+        O.pond(1,P.j,mm)        = pond;%    *store current PONDING  [cm]
+        O.fluxbot(1,P.j,mm)     = P.qbot;%	*store current QBOT     [cm d-1]
         % REGISTER: {K,K1s2,flux,macropore}
         %   -same as SWAP-32 call to SoilWater(3)
         multilayer_soilwater_register

@@ -84,6 +84,8 @@ P.samini                        = NaN(1,2);
 P.cmsy                          = NaN(P.nz,2);
 P.solbal                        = NaN(2,P.Nj);
 P.Ndtsolute                     = zeros(1,P.Nj);% need 0 as first value!
+% useful to print simulation output at screen, even when no solute transport is selected
+solbal                          = zeros(1,2);
 
 % -TIME:
 P.time                          = NaN(1,P.Nj); 

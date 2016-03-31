@@ -65,13 +65,13 @@ elseif sl==2
     sol_lab = 'NO_3^{-}';
 end
 
-[X,Y] = meshgrid([1,19],-(P.nodes.z(1:end-1)-P.nodes.dz(1:end-1)*0.5));
+[X,Y]   = meshgrid([1,19],-(P.nodes.z(1:end-1)-P.nodes.dz(1:end-1)*0.5));
 Csolute = squeeze( O.C2(:,1:P.j-1,1,sl) );
 
 % Csolute = log(Csolute +0.0001);
 
-mima = minmax( Csolute(:)' );
-cmap = colormap(jet(256)); % hsv, cool, jet
+mima    = minmax( Csolute(:)' );
+cmap    = colormap(jet(256)); % hsv, cool, jet
 % caxis( mima )
 hold on
 colorbar

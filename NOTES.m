@@ -47,6 +47,8 @@
 %    allora diventa direttamente P.nz=P.nz+1 il che vuol dire includere
 %    il nodo P.nz+1 nella griglia di suolo. DECIDIAMO rispettando la
 %    componente fisica del programma!!!
+%% dt unitario
+% cosa significa attualmente nel modello dt=1, un giorno di simulazione?
 %% _ADE_ function for nitrogen :: check with Antonio
 % idL   --> I changed its definition, is it ok?
 % O.C2  --> grows on "nodes" dimension from P.nz to P.nz+1. We have to
@@ -55,7 +57,7 @@
 %   I cannot change the two as hqsurf, because they both coexist in
 %   multilayer_prog.m (lines 325-326):
 %                     W.qsurf         = P.Ep;
-%                     W.hsurf         = (3*P.h1(1,P.j)-P.h1(2,P.j))/2;
+%                     W.hsurf         = (3*P.h_jm1(1,P.j)-P.h_jm1(2,P.j))/2;
 % Either we change that, or we leave all as it is now.
 %% P.Cinput
 % It is preallocated, then it is defined in _prog:
@@ -65,9 +67,8 @@
 %% C1 in _ADE_N
 % We assign to C1 the same values of O.C2 based on different conditions.
 % This is logically not possible!!! Check also checking old code.
-%% P.h1star [remove?]
 %% fluxin
-% In _ADE_N you are reading at P.nz+1 of P.flux, which is impossible (it's
+% In _ADE_N you are reading at P.nz+1 of P.q, which is impossible (it's
 % defined on 1:P.nz !!).
 %% stats on montecarlo: cumulative std during Monte Carlo Simulation ??
 % We should compute on the mm repetitions the following statistics for the

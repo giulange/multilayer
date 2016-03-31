@@ -16,15 +16,20 @@ W.Nj_shp            = 1.5;
 %                   variables:
 %                   { O.C2, O.h22, O.fluxsurf, O.fluxbot, O.runoff }
 % 
-% h22:              Print of flux at intermediate nodes.
+% h22:              Print of soil water pressure head [cm], excluding
+%                   boundary nodes.
 %                   [nodes x times x montecarlo]
-O.files.h22         = 'potential.txt';
+O.files.h22         = 'wat_h.txt';
+% 
+% teta:             Print of volumetric soil water content [-].
+%                   [nodes x times x montecarlo]
+O.files.theta       = 'wat_theta.txt';
 % 
 % C2:               Print of solutes concentrations.
 %                   [nodes x times x montecarlo x solutes]
-O.files.C2          = 'concentration.txt';
+O.files.C2          = 'sol_conc.txt';
 % 
 % flux:             Print of fluxes at top (=surface) and bottom boundaries
 %                   and of runoff (runon is not yet considered).
 %                   [1 x times x montecarlo]
-O.files.flux        = 'flux.txt';
+O.files.flux        = 'wat_flux.txt';

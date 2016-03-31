@@ -87,5 +87,13 @@ dF_dh(IDX)  = - P.Kim2(2:P.nz-1)./P.nodes.disnod(2:P.nz-1) + ...
 %    *[ dFnz_dhnz-1 ]:
 dF_dh(P.nz,P.nz-1) = - P.Kim2(P.nz)/P.nodes.disnod(P.nz) + ...
                      - k*dKim2_dhim1(P.nz)*hgrad(P.nz);
+%% *plot* [commented]
+% upD     = diag(dF_dh,+1);
+% lowD    = diag(dF_dh,-1);
+% diagD   = diag(dF_dh);
+% figure
+% subplot(311),plot(diagD),title('main diagonal of \deltaF / \deltah')
+% subplot(312),plot(upD),title('upper (+1) diagonal of \deltaF / \deltah')
+% subplot(313),plot(lowD),title('lower (-1) diagonal of \deltaF / \deltah')
 %% clean
 clear dz IDX %hgrad disnod dKim2_dhi dKip2_dhi dKim2_dhim1 dKip2_dhip1

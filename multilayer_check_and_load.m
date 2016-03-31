@@ -212,17 +212,29 @@ end
 %% P.hin
 P.hin       = multilayer_sub_valorization_depth( W.hin, P.nz, P.nodes.z(1:end-1) );
 %% P.CDECinNH
-P.CDECinNH  = multilayer_sub_valorization_depth( S.CDE.Cin.NH, P.nz, P.nodes.z(1:end-1) );
+if W.isol ~= 0
+    P.CDECinNH  = multilayer_sub_valorization_depth( S.CDE.Cin.NH, P.nz, P.nodes.z(1:end-1) );
+end
 %% P.CDECinNO
-P.CDECinNO  = multilayer_sub_valorization_depth( S.CDE.Cin.NO, P.nz, P.nodes.z(1:end-1) );
+if W.isol ~= 0
+    P.CDECinNO  = multilayer_sub_valorization_depth( S.CDE.Cin.NO, P.nz, P.nodes.z(1:end-1) );
+end
 %% P.CDElambda
-P.CDElambda = multilayer_sub_valorization_depth( S.CDE.lambda, P.nz, P.nodes.z(1:end-1) );
+if W.isol ~= 0
+    P.CDElambda = multilayer_sub_valorization_depth( S.CDE.lambda, P.nz, P.nodes.z(1:end-1) );
+end
 %% P.CDEKnitr
-P.CDEKnitr = multilayer_sub_valorization_depth( S.CDE.Knitr, P.nz, P.nodes.z(1:end-1) );
+if W.isol ~= 0
+    P.CDEKnitr = multilayer_sub_valorization_depth( S.CDE.Knitr, P.nz, P.nodes.z(1:end-1) );
+end
 %% P.CDEKimmob
-P.CDEKimmob = multilayer_sub_valorization_depth( S.CDE.Kimmob, P.nz, P.nodes.z(1:end-1) );
+if W.isol ~= 0
+    P.CDEKimmob = multilayer_sub_valorization_depth( S.CDE.Kimmob, P.nz, P.nodes.z(1:end-1) );
+end
 %% P.CDEKdenitr
-P.CDEKdenitr = multilayer_sub_valorization_depth( S.CDE.Kdenitr, P.nz, P.nodes.z(1:end-1) );
+if W.isol ~= 0
+    P.CDEKdenitr = multilayer_sub_valorization_depth( S.CDE.Kdenitr, P.nz, P.nodes.z(1:end-1) );
+end
 %% condizioni al contorno superiore e inferiore
 % if (W.itopvar==0 && W.ibotvar==0) || (W.itopvar==1 && W.ibotvar==1)
 %     error('W.itopvar=%d cannot be equal to W.ibotvar=%d',W.itopvar,W.ibotvar)

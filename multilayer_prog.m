@@ -155,3 +155,7 @@ O.time      = P.time;
 O.tprint    = P.tprint;
 O.tptolle   = W.tptole;
 O.z         = P.nodes.z(1:end-1);% last index is for bottom boundary!
+% store teta
+for ii = 1:size(O.h22,2)
+    O.teta(:,ii) = multilayer_fnteta_vgm( O.h22(:,ii), P.sh, 1:P.nz );
+end
