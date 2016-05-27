@@ -224,28 +224,42 @@ if V.swDroot==1%        parameters are given to calculate root depths
                           len_units_time( V.rotation(V.currcrop,2), W.sdate );
     P.Droot(dat)        = VPL( V.Droot, 1:numel(dat) );
 elseif V.swDroot==0%    values of root depth are prescribed at certain dates
+    % MMDD dates are prescribed
     if ischar(V.Droot{1})% I'm using the MMDD definition instead of DVS
-        warning('%s\n  %s',...
-            'I need to convert definition of time in Droot from MMDD dates to DVS times.',...
-            'See how LAI was implemented and apply the same for Droot.')
-    end
-    if size(V.Droot,1)==1
+%         warning('%s\n  %s',...
+%             'I need to convert definition of time in Droot from MMDD dates to DVS times.',...
+%             'See how LAI was implemented and apply the same for Droot.')
+    
+        if size(V.Droot,1)==1
 % --- the same rooting depth is applied over the whole simulation time
-        P.Droot         = repmat(V.Droot{1,2},1,W.tmax);
-    else
+            P.Droot         = repmat(V.Droot{1,2},1,W.tmax);
+        else
 % --- a linear trend of rooting depth is applied (till supplied timestep)
-        X1              = len_units_time(V.Droot(:,1),W.sdate);
-        for ii = 1:W.tmax
-            if isempty( find(X1>ii,1,'first') )
-                break
+            X1              = len_units_time(V.Droot(:,1),W.sdate);
+            for ii = 1:W.tmax
+                if isempty( find(X1>ii,1,'first') )
+                    break
+                end
+                F_x1        = find(X1<=ii,1,'last');
+                y1          = V.Droot{F_x1,2};
+                slope       = (V.Droot{F_x1+1,2}-V.Droot{F_x1,2})/(len_units_time(V.Droot{F_x1+1,1},V.Droot{F_x1,1}) -1);
+                P.Droot(ii) = y1 + (ii-X1(F_x1))*slope;
             end
-            F_x1        = find(X1<=ii,1,'last');
-            y1          = V.Droot{F_x1,2};
-            slope       = (V.Droot{F_x1+1,2}-V.Droot{F_x1,2})/(len_units_time(V.Droot{F_x1+1,1},V.Droot{F_x1,1}) -1);
-            P.Droot(ii) = y1 + (ii-X1(F_x1))*slope;
-        end
 % --- a plateau of rooting depth is applied (for timesteps exceding V.Droot definition)
-        P.Droot(ii:end) = V.Droot{end,2};
+            P.Droot(ii:end) = V.Droot{end,2};
+        end
+        
+    else% DVS dates are prescribed
+        % Crop Start:
+        cropS               = len_units_time( V.rotation(V.currcrop,1), W.sdate );
+        % Crop Duration:
+        cropDur             = diff(datenum( V.rotation(V.currcrop,1:2) ))+1;
+        X                   = round(cropDur * V.LAI(:,1) / 2  *10)/10;
+        for ii = 2:length(X)
+            % linearization in each DVS interval:
+            int             = V.Droot(ii-1,2): (V.Droot(ii,2)-V.Droot(ii-1,2))/(X(ii)-X(ii-1)) :V.Droot(ii,2);
+            P.Droot(dat(1)+X(ii-1):cropS+X(ii)-1) = int(2:end);
+        end
     end
 end
 %% LAI
